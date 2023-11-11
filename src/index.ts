@@ -1,3 +1,3 @@
-import { Add } from './Add.js';
+import { Invoices, InvoiceOperation, InvoicesWitness, Invoice } from './Invoices';
 
-export { Add };
+export { Invoices, InvoiceOperation, InvoicesWitness, Invoice };

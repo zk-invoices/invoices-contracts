@@ -13,8 +13,8 @@
  * Run with node:     `$ node build/src/interact.js <deployAlias>`.
  */
 import fs from 'fs/promises';
-import { Mina, PrivateKey } from 'o1js';
-import { Add } from './Add.js';
+import { Bool, Field, MerkleTree, Mina, PrivateKey, UInt32, Cache, fetchAccount } from 'o1js';
+import { Invoice, Invoices, InvoicesWitness } from './Invoices.js';
 
 // check command line arg
 let deployAlias = process.argv[2];
@@ -53,29 +53,50 @@ let feepayerKey = PrivateKey.fromBase58(feepayerKeysBase58.privateKey);
 let zkAppKey = PrivateKey.fromBase58(zkAppKeysBase58.privateKey);
 
 // set up Mina instance and contract we interact with
-const Network = Mina.Network(config.url);
+const Network = Mina.Network({
+  mina: config.url,
+  archive: 'https://archive.berkeley.minaexplorer.com'
+});
 const fee = Number(config.fee) * 1e9; // in nanomina (1 billion = 1.0 mina)
 Mina.setActiveInstance(Network);
 let feepayerAddress = feepayerKey.toPublicKey();
 let zkAppAddress = zkAppKey.toPublicKey();
-let zkApp = new Add(zkAppAddress);
+
+let zkApp = new Invoices(zkAppAddress);
 
 let sentTx;
 // compile the contract to create prover keys
 console.log('compile the contract...');
-await Add.compile();
+const cache: Cache = Cache.FileSystem("./nftcache");
+await Invoices.compile({ cache });
+
+await fetchAccount({ publicKey: zkAppAddress }, 'https://proxy.berkeley.minaexplorer.com/graphql');
+console.log('commitment', zkApp.commitment.get().toString());
+
+const Tree = new MerkleTree(32);
 try {
   // call update() and send transaction
   console.log('build transaction and create proof...');
-  let tx = await Mina.transaction({ sender: feepayerAddress, fee }, () => {
-    zkApp.update();
+  const invoice = new Invoice({
+    from: feepayerAddress,
+    to: zkAppAddress,
+    amount: UInt32.from(1),
+    settled: Bool(false),
+    metadataHash: Field(0)
   });
+
+  let tx = await Mina.transaction({ sender: feepayerAddress, fee }, () => {
+    zkApp.createInvoice(invoice, new InvoicesWitness(Tree.getWitness(0n)));
+    zkApp.commit();
+  });
+
   await tx.prove();
   console.log('send transaction...');
   sentTx = await tx.sign([feepayerKey]).send();
 } catch (err) {
   console.log(err);
 }
+
 if (sentTx?.hash() !== undefined) {
   console.log(`
 Success! Update transaction sent.

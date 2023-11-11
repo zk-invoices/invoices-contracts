@@ -37,5 +37,9 @@
   },
   "peerDependencies": {
     "o1js": "0.14.*"
+  },
+  "dependencies": {
+    "global": "^4.4.0",
+    "zkapp-cli": "^0.15.0"
   }
 }

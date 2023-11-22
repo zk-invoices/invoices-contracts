@@ -1,14 +1,19 @@
 import { Bool, Field, Poseidon } from "o1js";
 
 // external API
-export { Witness, PersistentMerkleTree, BaseMerkleWitness };
+export { Witness, Store, LocalStore, PersistentMerkleTree, BaseMerkleWitness };
 
 // internal API
 export { maybeSwap };
 
 type Witness = { isLeft: boolean; sibling: Field }[];
 
-class Store {
+interface Store {
+  getNode(legel: number, index: bigint, _default: Field): Promise<Field>;
+  setNode(level: number, index: bigint, value: Field): void;
+}
+
+class LocalStore implements Store {
   private nodes: Record<number, Record<string, Field>> = {};
 
   /**
@@ -37,7 +42,7 @@ class Store {
  *
  * Levels are indexed from leaves (level 0) to root (level N - 1).
  */
-class PersistentMerkleTree {
+export default class PersistentMerkleTree {
   // private nodes: Record<number, Record<string, Field>> = {};
   private store: Store;
   private zeroes: Field[];
@@ -216,14 +221,14 @@ function maybeSwap(b: Bool, x: Field, y: Field): [Field, Field] {
   return [x_, y_];
 }
 
-async function run () {
-  const store = new Store();
-  const tree = new PersistentMerkleTree(32, store);
+// async function run () {
+//   const store = new Store();
+//   const tree = new PersistentMerkleTree(32, store);
 
-  tree.setLeaf(0n, Field(0));
+//   tree.setLeaf(0n, Field(0));
 
-  console.log(new BaseMerkleWitness(await tree.getWitness(0n), 32));
-  tree.getRoot();
-}
+//   console.log(new BaseMerkleWitness(await tree.getWitness(0n), 32));
+//   tree.getRoot();
+// }
 
-run();
+// run();

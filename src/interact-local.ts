@@ -37,7 +37,7 @@ async function run() {
   let leaderboardZkApp = new Invoices(zkappAddress);
   console.log('Deploying leaderboard..');
   console.time();
-  const cache: Cache = Cache.FileSystem("./nftcache");
+  const cache: Cache = Cache.FileSystem("../../invoices-service/zkappcache");
   if (doProofs) {
     await Invoices.compile({ cache });
   }

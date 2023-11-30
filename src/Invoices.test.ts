@@ -1,4 +1,5 @@
-import { Invoice, Invoices, InvoicesWitness } from './Invoices';
+import { Invoices } from './Invoices';
+import { Invoice, InvoicesWitness } from './InvoicesModels';
 import { Field, Mina, PrivateKey, PublicKey, AccountUpdate, MerkleTree, UInt32, Bool } from 'o1js';
 
 /*

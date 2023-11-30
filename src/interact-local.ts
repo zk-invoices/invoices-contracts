@@ -8,7 +8,8 @@ import {
   Bool,
   Cache
 } from 'o1js';
-import { Invoice, Invoices, InvoicesWitness } from './Invoices.js';
+import { Invoice, InvoicesWitness } from './InvoicesModels.js';
+import { Invoices } from './Invoices.js';
 
 const doProofs = true;
 

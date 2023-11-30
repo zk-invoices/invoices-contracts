@@ -12,48 +12,19 @@ Merkle Trees give developers the power of storing large amounts of data off-chai
 
 import {
   SmartContract,
-  Poseidon,
   Field,
   State,
   state,
-  PublicKey,
-  Mina,
   method,
-  UInt32,
-  PrivateKey,
-  AccountUpdate,
   MerkleTree,
-  MerkleWitness,
   Struct,
-  Encoding,
   Bool,
   Reducer,
   Provable,
 } from 'o1js';
+import { Invoice } from './InvoicesModels';
+import { InvoicesWitness } from './InvoicesModels';
 
-export class InvoicesWitness extends MerkleWitness(32) {}
-
-export class Invoice extends Struct({
-  from: PublicKey,
-  to: PublicKey,
-  amount: UInt32,
-  settled: Bool,
-  metadataHash: Field,
-}) {
-  hash(): Field {
-    return Poseidon.hash(Invoice.toFields(this));
-  }
-
-  settle() {
-    return new Invoice({
-      from: this.from,
-      to: this.to,
-      amount: this.amount,
-      metadataHash: this.metadataHash,
-      settled: Bool(true),
-    });
-  }
-}
 
 // we now need "wrap" the Merkle tree around our off-chain storage
 // we initialize a new Merkle Tree with height 8

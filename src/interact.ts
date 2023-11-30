@@ -14,7 +14,8 @@
  */
 import fs from 'fs/promises';
 import { Bool, Field, MerkleTree, Mina, PrivateKey, UInt32, Cache, fetchAccount } from 'o1js';
-import { Invoice, Invoices, InvoicesWitness } from './Invoices.js';
+import { Invoice, InvoicesWitness } from './InvoicesModels.js';
+import { Invoices } from './Invoices.js';
 
 // check command line arg
 let deployAlias = process.argv[2];

@@ -84,12 +84,6 @@ export class Invoices extends SmartContract {
 
   reducer = Reducer({ actionType: InvoiceOperation });
 
-  @method init() {
-    super.init();
-    this.accumulated.set(Reducer.initialActionState);
-    this.commitment.set(initialRoot);
-  }
-
   @method
   createInvoice(invoice: Invoice, path: InvoicesWitness) {
     let commit = this.commitment.get();
@@ -225,6 +219,11 @@ export class Token extends SmartContract {
         setTiming: Permissions.proof(),
       },
     };
+
+    update.body.update.appState = [
+      { isSome: Bool(true), value: initialRoot },
+      { isSome: Bool(true), value: Reducer.initialActionState }
+    ];
   }
 
   @method createInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness) {

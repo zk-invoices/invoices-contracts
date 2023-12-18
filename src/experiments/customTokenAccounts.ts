@@ -222,7 +222,13 @@ export class Token extends SmartContract {
 
     update.body.update.appState = [
       { isSome: Bool(true), value: initialRoot },
-      { isSome: Bool(true), value: Reducer.initialActionState }
+      { isSome: Bool(true), value: Reducer.initialActionState },
+      { isSome: Bool(true), value: Field(0) },
+      { isSome: Bool(true), value: Field(0) },
+      { isSome: Bool(true), value: Field(0) },
+      { isSome: Bool(true), value: Field(0) },
+      { isSome: Bool(true), value: Field(0) },
+      { isSome: Bool(true), value: Field(0) },
     ];
   }
 

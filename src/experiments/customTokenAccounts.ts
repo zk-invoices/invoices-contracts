@@ -288,10 +288,20 @@ async function run() {
   await tx.prove();
   await tx.sign([feePayerKey, zkappKey]).send();
 
-  await mintToken();
-  await update();
+  const invoice = new Invoice({
+    from: Local.testAccounts[1].publicKey,
+    to: Local.testAccounts[1].publicKey,
+    amount: UInt32.from(1),
+    settled: Bool(false),
+    metadataHash: Field(0),
+  });
 
-  async function mintToken() {
+  await mintAccount();
+  await update();
+  await settle();
+  await commit();
+
+  async function mintAccount() {
     console.log(`minting for`, userPublicKey.toBase58());
     let tx = await Mina.transaction(feePayer, () => {
       AccountUpdate.fundNewAccount(feePayer).send({
@@ -307,18 +317,34 @@ async function run() {
 
   async function update() {
     console.log('updating');
-    const invoice = new Invoice({
-      from: Local.testAccounts[1].publicKey,
-      to: Local.testAccounts[1].publicKey,
-      amount: UInt32.from(1),
-      settled: Bool(false),
-      metadataHash: Field(0),
-    });
     const w = Tree.getWitness(0n);
     let witness = new InvoicesWitness(w);
 
     let tx = await Mina.transaction(feePayer, () => {
       tokensApp.createInvoice(userPublicKey, invoice, witness);
+    });
+    await tx.prove();
+    await tx.sign([feePayerKey, userPrivateKey]).send();
+
+    Tree.setLeaf(0n, invoice.hash());
+  }
+
+  async function settle() {
+    console.log('settle invoice');
+    const w = Tree.getWitness(0n);
+    let witness = new InvoicesWitness(w);
+
+    let tx = await Mina.transaction(feePayer, () => {
+      tokensApp.settleInvoice(userPublicKey, invoice.settle(), witness);
+    });
+    await tx.prove();
+    await tx.sign([feePayerKey, userPrivateKey]).send();
+  }
+
+  async function commit() {
+    console.log('commit settlement');
+    let tx = await Mina.transaction(feePayer, () => {
+      tokensApp.commit(userPublicKey);
     });
     await tx.prove();
     await tx.sign([feePayerKey, userPrivateKey]).send();

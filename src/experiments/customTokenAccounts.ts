@@ -335,7 +335,7 @@ async function run() {
     let witness = new InvoicesWitness(w);
 
     let tx = await Mina.transaction(feePayer, () => {
-      tokensApp.settleInvoice(userPublicKey, invoice.settle(), witness);
+      tokensApp.settleInvoice(userPublicKey, invoice, witness);
     });
     await tx.prove();
     await tx.sign([feePayerKey, userPrivateKey]).send();

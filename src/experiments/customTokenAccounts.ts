@@ -310,23 +310,25 @@ async function run() {
     metadataHash: Field(0),
   });
 
-  await mintAccount();
+  await mintAccount(userPrivateKey);
+  await mintAccount(receiverPrivateKey);
   await update();
   await settle();
   await commit();
 
-  async function mintAccount() {
-    console.log(`minting for`, userPublicKey.toBase58());
+  async function mintAccount(privateKey: PrivateKey) {
+    const publicKey = privateKey.toPublicKey();
+    console.log(`minting for`, publicKey.toBase58());
     let tx = await Mina.transaction(feePayer, () => {
       AccountUpdate.fundNewAccount(feePayer).send({
-        to: userPublicKey,
+        to: publicKey,
         amount: initialBalance
       });
       AccountUpdate.fundNewAccount(feePayer);
-      tokensApp.mint(userPrivateKey.toPublicKey(), verificationKey);
+      tokensApp.mint(privateKey.toPublicKey(), verificationKey);
     });
     await tx.prove();
-    await tx.sign([feePayerKey, userPrivateKey]).send();
+    await tx.sign([feePayerKey, privateKey]).send();
   }
 
   async function update() {
@@ -335,7 +337,6 @@ async function run() {
     let witness = new InvoicesWitness(w);
 
     let tx = await Mina.transaction(feePayer, () => {
-      AccountUpdate.fundNewAccount(feePayer);
       tokensApp.createInvoice(userPublicKey, invoice, witness, receiverPublicKey);
     });
     await tx.prove();

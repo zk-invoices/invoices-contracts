@@ -19,7 +19,8 @@ import {
   state,
   State,
   Reducer,
-  Provable
+  Provable,
+  UInt64
 } from 'o1js';
 
 export class InvoicesWitness extends MerkleWitness(32) {}
@@ -45,6 +46,7 @@ export class Invoice extends Struct({
     });
   }
 }
+
 // we now need "wrap" the Merkle tree around our off-chain storage
 // we initialize a new Merkle Tree with height 8
 const initialRoot = new MerkleTree(32).getRoot();
@@ -79,15 +81,16 @@ export class InvoiceOperation extends Struct({
 }
 
 export class Invoices extends SmartContract {
-  @state(Field) commitment = State<Field>();
+  @state(Field) sentInvoices = State<Field>();
   @state(Field) accumulated = State<Field>();
+  @state(Field) limit = State<Field>();
 
   reducer = Reducer({ actionType: InvoiceOperation });
 
   @method
   createInvoice(invoice: Invoice, path: InvoicesWitness) {
-    let commit = this.commitment.get();
-    this.commitment.assertEquals(commit);
+    let commit = this.sentInvoices.get();
+    this.sentInvoices.assertEquals(commit);
 
     path
       .calculateRoot(Field(0))
@@ -119,8 +122,8 @@ export class Invoices extends SmartContract {
 
   @method
   settleInvoice(invoice: Invoice, path: InvoicesWitness) {
-    let commit = this.commitment.get();
-    this.commitment.assertEquals(commit);
+    let commit = this.sentInvoices.get();
+    this.sentInvoices.assertEquals(commit);
 
     let accumulated = this.accumulated.get();
     this.accumulated.assertEquals(accumulated);
@@ -162,8 +165,8 @@ export class Invoices extends SmartContract {
     let accumulated = this.accumulated.get();
     this.accumulated.assertEquals(accumulated);
 
-    let commitment = this.commitment.get();
-    this.commitment.assertEquals(commitment);
+    let commitment = this.sentInvoices.get();
+    this.sentInvoices.assertEquals(commitment);
 
     let pendingActions = this.reducer.getActions({
       fromActionState: accumulated,
@@ -185,14 +188,14 @@ export class Invoices extends SmartContract {
         { state: commitment, actionState: accumulated }
       );
 
-    this.commitment.set(newCommitment);
+    this.sentInvoices.set(newCommitment);
     this.accumulated.set(newAccumulated);
   }
 }
 
 const doProofs = true;
 
-export class Token extends SmartContract {
+export class InvoiceProvider extends SmartContract {
   deploy(args: DeployArgs) {
     super.deploy(args);
     this.account.permissions.set({
@@ -205,8 +208,8 @@ export class Token extends SmartContract {
   }
 
   @method
-  mint(address: PublicKey, vk: VerificationKey) {
-    this.token.mint({ address, amount: 1 });
+  mint(address: PublicKey, vk: VerificationKey, amount: UInt64) {
+    this.token.mint({ address, amount });
     const update = AccountUpdate.createSigned(address, this.token.id);
     update.body.update.verificationKey = { isSome: Bool(true), value: vk };
     update.body.update.permissions = {
@@ -223,7 +226,7 @@ export class Token extends SmartContract {
     update.body.update.appState = [
       { isSome: Bool(true), value: initialRoot },
       { isSome: Bool(true), value: Reducer.initialActionState },
-      { isSome: Bool(true), value: Field(0) },
+      { isSome: Bool(true), value: Field(amount.toBigInt()) },
       { isSome: Bool(true), value: Field(0) },
       { isSome: Bool(true), value: Field(0) },
       { isSome: Bool(true), value: Field(0) },
@@ -232,8 +235,23 @@ export class Token extends SmartContract {
     ];
   }
 
-  @method createInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness) {
+  @method createInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness, to: PublicKey) {
     const zkAppTokenAccount = new Invoices(address, this.token.id);
+
+    const _limit = zkAppTokenAccount.limit.get();
+    zkAppTokenAccount.limit.assertEquals(_limit);
+
+    const limit = new UInt64(_limit.toBigInt())
+    zkAppTokenAccount.limit.set(Field(limit.sub(invoice.amount.toUInt64()).toBigInt()));
+
+    invoice.amount.toUInt64().assertGreaterThanOrEqual(limit, 'Invoice amount greater than limit');
+
+    this.token.send({
+      from: to,
+      to: address,
+      amount: invoice.amount.toBigint()
+    });
+
     zkAppTokenAccount.createInvoice(invoice, path);
   }
 
@@ -259,6 +277,9 @@ async function run() {
   const userPrivateKey = PrivateKey.random();
   const userPublicKey = userPrivateKey.toPublicKey();
 
+  const receiverPrivateKey = PrivateKey.random();
+  const receiverPublicKey = receiverPrivateKey.toPublicKey();
+
   // the zkapp account
   let zkappKey = PrivateKey.random();
   let zkappAddress = zkappKey.toPublicKey();
@@ -267,14 +288,14 @@ async function run() {
 
   // now that we got our accounts set up, we need the commitment to deploy our contract!
   
-  let tokensApp = new Token(zkappAddress);
+  let tokensApp = new InvoiceProvider(zkappAddress);
   console.log('Deploying nested tokens');
   console.time();
   const cache: Cache = Cache.FileSystem("./localcache");
   
   const { verificationKey } = (await Invoices.compile());
 
-  await Token.compile({ cache });
+  await InvoiceProvider.compile({ cache });
   console.timeEnd();
   console.log('compiled');
   let tx = await Mina.transaction(feePayer, () => {
@@ -309,7 +330,7 @@ async function run() {
         amount: initialBalance
       });
       AccountUpdate.fundNewAccount(feePayer);
-      tokensApp.mint(userPrivateKey.toPublicKey(), verificationKey);
+      tokensApp.mint(userPrivateKey.toPublicKey(), verificationKey, new UInt64(10000));
     });
     await tx.prove();
     await tx.sign([feePayerKey, userPrivateKey]).send();
@@ -321,7 +342,7 @@ async function run() {
     let witness = new InvoicesWitness(w);
 
     let tx = await Mina.transaction(feePayer, () => {
-      tokensApp.createInvoice(userPublicKey, invoice, witness);
+      tokensApp.createInvoice(userPublicKey, invoice, witness, receiverPublicKey);
     });
     await tx.prove();
     await tx.sign([feePayerKey, userPrivateKey]).send();

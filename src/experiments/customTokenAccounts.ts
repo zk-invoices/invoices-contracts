@@ -28,7 +28,7 @@ export class InvoicesWitness extends MerkleWitness(32) {}
 export class Invoice extends Struct({
   from: PublicKey,
   to: PublicKey,
-  amount: UInt32,
+  amount: Field,
   settled: Bool,
   metadataHash: Field,
 }) {
@@ -208,8 +208,8 @@ export class InvoiceProvider extends SmartContract {
   }
 
   @method
-  mint(address: PublicKey, vk: VerificationKey, amount: UInt64) {
-    this.token.mint({ address, amount });
+  mint(address: PublicKey, vk: VerificationKey) {
+    this.token.mint({ address, amount: 1000 });
     const update = AccountUpdate.createSigned(address, this.token.id);
     update.body.update.verificationKey = { isSome: Bool(true), value: vk };
     update.body.update.permissions = {
@@ -226,7 +226,7 @@ export class InvoiceProvider extends SmartContract {
     update.body.update.appState = [
       { isSome: Bool(true), value: initialRoot },
       { isSome: Bool(true), value: Reducer.initialActionState },
-      { isSome: Bool(true), value: Field(amount.toBigInt()) },
+      { isSome: Bool(true), value: Field(1000) },
       { isSome: Bool(true), value: Field(0) },
       { isSome: Bool(true), value: Field(0) },
       { isSome: Bool(true), value: Field(0) },
@@ -238,18 +238,10 @@ export class InvoiceProvider extends SmartContract {
   @method createInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness, to: PublicKey) {
     const zkAppTokenAccount = new Invoices(address, this.token.id);
 
-    const _limit = zkAppTokenAccount.limit.get();
-    zkAppTokenAccount.limit.assertEquals(_limit);
-
-    const limit = new UInt64(_limit.toBigInt())
-    zkAppTokenAccount.limit.set(Field(limit.sub(invoice.amount.toUInt64()).toBigInt()));
-
-    invoice.amount.toUInt64().assertGreaterThanOrEqual(limit, 'Invoice amount greater than limit');
-
     this.token.send({
-      from: to,
-      to: address,
-      amount: invoice.amount.toBigint()
+      from: address,
+      to: to,
+      amount: 1
     });
 
     zkAppTokenAccount.createInvoice(invoice, path);
@@ -292,8 +284,9 @@ async function run() {
   console.log('Deploying nested tokens');
   console.time();
   const cache: Cache = Cache.FileSystem("./localcache");
+  const ocache: Cache = Cache.FileSystem("./olocalcache");
   
-  const { verificationKey } = (await Invoices.compile());
+  const { verificationKey } = (await Invoices.compile({ cache: ocache }));
 
   await InvoiceProvider.compile({ cache });
   console.timeEnd();
@@ -312,7 +305,7 @@ async function run() {
   const invoice = new Invoice({
     from: Local.testAccounts[1].publicKey,
     to: Local.testAccounts[1].publicKey,
-    amount: UInt32.from(1),
+    amount: Field(1),
     settled: Bool(false),
     metadataHash: Field(0),
   });
@@ -330,7 +323,7 @@ async function run() {
         amount: initialBalance
       });
       AccountUpdate.fundNewAccount(feePayer);
-      tokensApp.mint(userPrivateKey.toPublicKey(), verificationKey, new UInt64(10000));
+      tokensApp.mint(userPrivateKey.toPublicKey(), verificationKey);
     });
     await tx.prove();
     await tx.sign([feePayerKey, userPrivateKey]).send();
@@ -342,6 +335,7 @@ async function run() {
     let witness = new InvoicesWitness(w);
 
     let tx = await Mina.transaction(feePayer, () => {
+      AccountUpdate.fundNewAccount(feePayer);
       tokensApp.createInvoice(userPublicKey, invoice, witness, receiverPublicKey);
     });
     await tx.prove();

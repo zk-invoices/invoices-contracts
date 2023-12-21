@@ -20,7 +20,8 @@ import {
   State,
   Reducer,
   Provable,
-  UInt64
+  UInt64,
+  Account
 } from 'o1js';
 
 export class InvoicesWitness extends MerkleWitness(32) {}
@@ -201,9 +202,10 @@ export class InvoiceProvider extends SmartContract {
     this.account.permissions.set({
       ...Permissions.default(),
       setDelegate: Permissions.proof(),
-      incrementNonce: Permissions.proof(),
+      incrementNonce: Permissions.proofOrSignature(),
       setVotingFor: Permissions.proof(),
       setTiming: Permissions.proof(),
+      send: Permissions.proofOrSignature()
     });
   }
 
@@ -217,9 +219,10 @@ export class InvoiceProvider extends SmartContract {
       value: {
         ...Permissions.default(),
         setDelegate: Permissions.proof(),
-        incrementNonce: Permissions.proof(),
+        incrementNonce: Permissions.proofOrSignature(),
         setVotingFor: Permissions.proof(),
         setTiming: Permissions.proof(),
+        send: Permissions.proofOrSignature()
       },
     };
 
@@ -238,9 +241,11 @@ export class InvoiceProvider extends SmartContract {
   @method createInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness, to: PublicKey) {
     const zkAppTokenAccount = new Invoices(address, this.token.id);
 
-    this.token.send({
-      from: address,
-      to: to,
+    const update = AccountUpdate.create(address, this.token.id);
+
+    update.balance.subInPlace(1);
+    this.token.mint({
+      address: to,
       amount: 1
     });
 
@@ -336,11 +341,14 @@ async function run() {
     const w = Tree.getWitness(0n);
     let witness = new InvoicesWitness(w);
 
-    let tx = await Mina.transaction(feePayer, () => {
+    let tx = await Mina.transaction(userPublicKey, () => {
       tokensApp.createInvoice(userPublicKey, invoice, witness, receiverPublicKey);
     });
+
+    console.log(tx.toPretty());
+
     await tx.prove();
-    await tx.sign([feePayerKey, userPrivateKey]).send();
+    await tx.sign([feePayerKey, zkappKey, userPrivateKey, receiverPrivateKey]).send();
 
     Tree.setLeaf(0n, invoice.hash());
   }

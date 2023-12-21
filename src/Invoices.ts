@@ -21,6 +21,8 @@ import {
   Bool,
   Reducer,
   Provable,
+  UInt64,
+  UInt32,
 } from 'o1js';
 import { Invoice } from './InvoicesModels';
 import { InvoicesWitness } from './InvoicesModels';
@@ -62,6 +64,8 @@ export class InvoiceOperation extends Struct({
 export class Invoices extends SmartContract {
   @state(Field) commitment = State<Field>();
   @state(Field) accumulated = State<Field>();
+  @state(UInt64) limit = State<UInt32>();
+  @state(UInt64) used = State<UInt32>();
 
   reducer = Reducer({ actionType: InvoiceOperation });
 
@@ -69,12 +73,20 @@ export class Invoices extends SmartContract {
     super.init();
     this.accumulated.set(Reducer.initialActionState);
     this.commitment.set(initialRoot);
+    this.limit.set(UInt32.from(10000));
+    this.used.set(UInt32.from(0));
   }
 
   @method
   createInvoice(invoice: Invoice, path: InvoicesWitness) {
     let commit = this.commitment.get();
-    this.commitment.assertEquals(commit);
+    this.commitment.requireEquals(commit);
+
+    let currentLimit = this.limit.get();
+    this.limit.requireEquals(currentLimit);
+
+    let currentUsed = this.used.get();
+    this.used.requireEquals(currentUsed);
 
     path
       .calculateRoot(Field(0))
@@ -82,7 +94,7 @@ export class Invoices extends SmartContract {
       .assertTrue('The invoice already exists');
 
     let accumulated = this.accumulated.get();
-    this.accumulated.assertEquals(accumulated);
+    this.accumulated.requireEquals(accumulated);
 
     let pendingActions = this.reducer.getActions({
       fromActionState: accumulated,
@@ -99,7 +111,17 @@ export class Invoices extends SmartContract {
       { state: Bool(false), actionState: accumulated }
     );
 
+    let { state: usedLimit } = this.reducer.reduce(
+      pendingActions,
+      UInt32,
+      (state: UInt32, action: InvoiceOperation) => {
+        return Provable.if(action.isCreate(), state.add(invoice.amount), state);
+      },
+      { state: currentLimit, actionState: accumulated }
+    );
+
     state.assertFalse('The invoice already exists');
+    currentUsed.add(invoice.amount).assertLessThanOrEqual(usedLimit, 'Limit already used');
 
     this.reducer.dispatch(InvoiceOperation.create(invoice, path));
   }

@@ -29,7 +29,7 @@ export class InvoicesWitness extends MerkleWitness(32) {}
 export class Invoice extends Struct({
   from: PublicKey,
   to: PublicKey,
-  amount: Field,
+  amount: UInt64,
   settled: Bool,
   metadataHash: Field,
 }) {
@@ -84,14 +84,15 @@ export class InvoiceOperation extends Struct({
 export class Invoices extends SmartContract {
   @state(Field) sentInvoices = State<Field>();
   @state(Field) accumulated = State<Field>();
-  @state(Field) limit = State<Field>();
+  @state(UInt64) limit = State<UInt64>();
+  @state(UInt64) used = State<UInt64>();
 
   reducer = Reducer({ actionType: InvoiceOperation });
 
   @method
   createInvoice(invoice: Invoice, path: InvoicesWitness) {
     let commit = this.sentInvoices.get();
-    this.sentInvoices.assertEquals(commit);
+    this.sentInvoices.requireEquals(commit);
 
     path
       .calculateRoot(Field(0))
@@ -192,6 +193,12 @@ export class Invoices extends SmartContract {
     this.sentInvoices.set(newCommitment);
     this.accumulated.set(newAccumulated);
   }
+
+  @method increaseLimit(amount: UInt64) {
+    const newLimit = this.limit.get().add(amount);
+
+    this.limit.set(newLimit);
+  }
 }
 
 const doProofs = true;
@@ -229,7 +236,7 @@ export class InvoiceProvider extends SmartContract {
     update.body.update.appState = [
       { isSome: Bool(true), value: initialRoot },
       { isSome: Bool(true), value: Reducer.initialActionState },
-      { isSome: Bool(true), value: Field(1000) },
+      { isSome: Bool(true), value: Field(0) },
       { isSome: Bool(true), value: Field(0) },
       { isSome: Bool(true), value: Field(0) },
       { isSome: Bool(true), value: Field(0) },
@@ -241,9 +248,6 @@ export class InvoiceProvider extends SmartContract {
   @method createInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness, to: PublicKey) {
     const zkAppTokenAccount = new Invoices(address, this.token.id);
 
-    const update = AccountUpdate.create(address, this.token.id);
-
-    update.balance.subInPlace(1);
     this.token.mint({
       address: to,
       amount: 1
@@ -310,7 +314,7 @@ async function run() {
   const invoice = new Invoice({
     from: Local.testAccounts[1].publicKey,
     to: Local.testAccounts[1].publicKey,
-    amount: Field(1),
+    amount: UInt64.from(1),
     settled: Bool(false),
     metadataHash: Field(0),
   });

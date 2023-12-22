@@ -20,7 +20,8 @@ describe('Invoices', () => {
     zkAppPrivateKey: PrivateKey,
     zkApp: Invoices,
     invoices: Invoice[] = [],
-    Tree: MerkleTree;
+    Tree: MerkleTree,
+    testAccounts: { publicKey: PublicKey, privateKey: PrivateKey }[];
 
   beforeAll(async () => {
     if (proofsEnabled) await Invoices.compile();
@@ -28,6 +29,9 @@ describe('Invoices', () => {
 
   beforeEach(() => {
     const Local = Mina.LocalBlockchain({ proofsEnabled });
+
+    testAccounts = Local.testAccounts;
+
     Mina.setActiveInstance(Local);
     ({ privateKey: deployerKey, publicKey: deployerAccount } =
       Local.testAccounts[0]);
@@ -139,5 +143,65 @@ describe('Invoices', () => {
 
     const commit = zkApp.commitment.get();
     expect(commit).toEqual(Tree.getRoot());
+  });
+
+  it('not create an invoice if it exceeds the limit', async () => {
+    await localDeploy();
+
+    const overLimitInvoice = new Invoice({
+      from: testAccounts[1].publicKey,
+      to: testAccounts[1].publicKey,
+      amount: UInt32.from(1000000),
+      settled: Bool(false),
+      metadataHash: Field(0)
+    });
+
+    try {
+      const txn = await Mina.transaction(senderAccount, () => {
+        zkApp.createInvoice(overLimitInvoice, new InvoicesWitness(Tree.getWitness(0n)));
+      });
+
+      await txn.prove();
+      await txn.sign([senderKey]).send();
+    } catch (err: any) { 
+      expect(err.message).toEqual('Limit already used')
+    }
+  });
+
+  it('create an invoice after limit is updated', async () => {
+    await localDeploy();
+
+    const overLimitInvoice = new Invoice({
+      from: testAccounts[1].publicKey,
+      to: testAccounts[1].publicKey,
+      amount: UInt32.from(1000000),
+      settled: Bool(false),
+      metadataHash: Field(0)
+    });
+
+    try {
+      const txn = await Mina.transaction(senderAccount, () => {
+        zkApp.createInvoice(overLimitInvoice, new InvoicesWitness(Tree.getWitness(0n)));
+      });
+
+      await txn.prove();
+      await txn.sign([senderKey]).send();
+    } catch (err: any) { 
+      expect(err.message).toEqual('Limit already used')
+    }
+
+    const txn2 = await Mina.transaction(senderAccount, () => {
+      zkApp.increaseLimit(UInt32.from(1000000));
+    });
+
+    await txn2.prove();
+    await txn2.sign([senderKey]).send();
+
+    const txn3 = await Mina.transaction(senderAccount, () => {
+      zkApp.createInvoice(overLimitInvoice, new InvoicesWitness(Tree.getWitness(0n)));
+    });
+
+    await txn3.prove();
+    await txn3.sign([senderKey]).send();
   });
 });

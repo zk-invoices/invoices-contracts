@@ -65,7 +65,7 @@ export class Invoices extends SmartContract {
   @state(Field) commitment = State<Field>();
   @state(Field) accumulated = State<Field>();
   @state(UInt64) limit = State<UInt32>();
-  @state(UInt64) used = State<UInt32>();
+  @state(UInt64) usage = State<UInt32>();
 
   reducer = Reducer({ actionType: InvoiceOperation });
 
@@ -74,7 +74,7 @@ export class Invoices extends SmartContract {
     this.accumulated.set(Reducer.initialActionState);
     this.commitment.set(initialRoot);
     this.limit.set(UInt32.from(10000));
-    this.used.set(UInt32.from(0));
+    this.usage.set(UInt32.from(0));
   }
 
   @method
@@ -85,8 +85,8 @@ export class Invoices extends SmartContract {
     let currentLimit = this.limit.get();
     this.limit.requireEquals(currentLimit);
 
-    let currentUsed = this.used.get();
-    this.used.requireEquals(currentUsed);
+    let currentUsed = this.usage.get();
+    this.usage.requireEquals(currentUsed);
 
     path
       .calculateRoot(Field(0))
@@ -169,10 +169,13 @@ export class Invoices extends SmartContract {
   @method
   commit() {
     let accumulated = this.accumulated.get();
-    this.accumulated.assertEquals(accumulated);
+    this.accumulated.requireEquals(accumulated);
 
     let commitment = this.commitment.get();
-    this.commitment.assertEquals(commitment);
+    this.commitment.requireEquals(commitment);
+
+    let currentUsage = this.usage.get();
+    this.usage.requireEquals(currentUsage);
 
     let pendingActions = this.reducer.getActions({
       fromActionState: accumulated,
@@ -194,7 +197,30 @@ export class Invoices extends SmartContract {
         { state: commitment, actionState: accumulated }
       );
 
+    let { state: newUsage } =
+      this.reducer.reduce(
+        pendingActions,
+        UInt32,
+        (state: UInt32, action: InvoiceOperation) => {
+          return Provable.if(
+            action.isCreate(),
+            state.add(action.invoice.amount),
+            state
+          );
+        },
+        { state: currentUsage, actionState: accumulated }
+      );
+
+    this.usage.set(newUsage);
     this.commitment.set(newCommitment);
     this.accumulated.set(newAccumulated);
+  }
+
+  @method
+  increaseLimit(amount: UInt32) {
+    const currentLimit = this.limit.get();
+    this.limit.requireEquals(currentLimit);
+
+    this.limit.set(currentLimit.add(amount));
   }
 }

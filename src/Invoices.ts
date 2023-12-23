@@ -79,22 +79,16 @@ export class Invoices extends SmartContract {
 
   @method
   createInvoice(invoice: Invoice, path: InvoicesWitness) {
-    let commit = this.commitment.get();
-    this.commitment.requireEquals(commit);
-
-    let currentLimit = this.limit.get();
-    this.limit.requireEquals(currentLimit);
-
-    let currentUsed = this.usage.get();
-    this.usage.requireEquals(currentUsed);
+    let commit = this.commitment.getAndRequireEquals();
+    let currentLimit = this.limit.getAndRequireEquals();
+    let currentUsed = this.usage.getAndRequireEquals();
 
     path
       .calculateRoot(Field(0))
       .equals(commit)
       .assertTrue('The invoice already exists');
 
-    let accumulated = this.accumulated.get();
-    this.accumulated.requireEquals(accumulated);
+    let accumulated = this.accumulated.getAndRequireEquals();
 
     let pendingActions = this.reducer.getActions({
       fromActionState: accumulated,
@@ -128,11 +122,8 @@ export class Invoices extends SmartContract {
 
   @method
   settleInvoice(invoice: Invoice, path: InvoicesWitness) {
-    let commit = this.commitment.get();
-    this.commitment.assertEquals(commit);
-
-    let accumulated = this.accumulated.get();
-    this.accumulated.assertEquals(accumulated);
+    let commit = this.commitment.getAndRequireEquals();
+    let accumulated = this.accumulated.getAndRequireEquals();
 
     invoice.settled.assertFalse('Invoice is already settled');
     let isCreateCommitted = path.calculateRoot(invoice.hash()).equals(commit);

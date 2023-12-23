@@ -1,6 +1,6 @@
+import { Field, Mina, PrivateKey, PublicKey, AccountUpdate, MerkleTree, UInt32, Bool, VerificationKey, Cache } from 'o1js';
 import { Invoices } from './Invoices';
 import { Invoice, InvoicesWitness } from './InvoicesModels';
-import { Field, Mina, PrivateKey, PublicKey, AccountUpdate, MerkleTree, UInt32, Bool, VerificationKey } from 'o1js';
 import { InvoicesProvider } from './InvoicesProvider';
 
 /*
@@ -25,10 +25,11 @@ describe('Invoices', () => {
     vkInvoices: VerificationKey;
 
   beforeAll(async () => {
-    await InvoicesProvider.compile();
-    let { verificationKey } = await Invoices.compile();
+    let { verificationKey: vk1 } = await Invoices.compile();
 
-    vkInvoices = verificationKey;
+    vkInvoices = vk1;
+
+    await InvoicesProvider.compile();
   });
 
   beforeEach(() => {
@@ -58,17 +59,25 @@ describe('Invoices', () => {
       metadataHash: Field(0)
     })];
 
+    console.log('x');
     const txn = await Mina.transaction(deployerAccount, () => {
       AccountUpdate.fundNewAccount(deployerAccount);
       zkApp.deploy({});
       zkApp.account.tokenSymbol.set('bills');
     });
+    console.log('y');
     await txn.prove();
     // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
     await txn.sign([deployerKey, zkAppPrivateKey]).send();
+    console.log('z');
   }
 
   it('generates and deploys the `Invoices` smart contract', async () => {
+    console.log('a');
     await localDeploy();
+    console.log('b');
+
+    zkApp.mint(testAccounts[2].publicKey, vkInvoices, Tree.getRoot(), Field.from(1000));
+    console.log('c');
   });
 });

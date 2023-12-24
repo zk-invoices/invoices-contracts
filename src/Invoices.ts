@@ -62,6 +62,7 @@ export class InvoiceOperation extends Struct({
 }
 
 export class Invoices extends SmartContract {
+  @state(Field) vkHash = State<Field>();
   @state(Field) commitment = State<Field>();
   @state(Field) accumulated = State<Field>();
   @state(UInt64) limit = State<UInt32>();

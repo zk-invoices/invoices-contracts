@@ -64,6 +64,7 @@ describe('Invoices', () => {
       AccountUpdate.fundNewAccount(deployerAccount);
       zkApp.deploy({});
       zkApp.account.tokenSymbol.set('bills');
+      zkApp.tokenZkAppVkHash.set(vkInvoices.hash);
     });
     console.log('y');
     await txn.prove();
@@ -77,7 +78,12 @@ describe('Invoices', () => {
     await localDeploy();
     console.log('b');
 
-    zkApp.mint(testAccounts[2].publicKey, vkInvoices, Tree.getRoot(), Field.from(1000));
-    console.log('c');
+    const txn = await Mina.transaction(deployerAccount, () => {
+      AccountUpdate.fundNewAccount(deployerAccount);
+      zkApp.mint(testAccounts[2].publicKey, vkInvoices, Tree.getRoot(), Field.from(1000));
+    }); 
+    await txn.prove();
+    // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
+    await txn.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
   });
 });

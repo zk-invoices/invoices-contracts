@@ -34,8 +34,8 @@ export class InvoicesProvider extends SmartContract {
 
   @method
   mint(address: PublicKey, vk: VerificationKey, initialRoot: Field, initialLimit: Field) {
-    this.token.mint({ address, amount: 1 });
     const isNewAccount = Account(address, this.token.id).isNew.getAndRequireEquals();
+    this.token.mint({ address, amount: 1 });
 
     isNewAccount.assertTrue('Token already minted');
 

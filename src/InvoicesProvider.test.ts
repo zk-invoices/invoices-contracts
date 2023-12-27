@@ -59,24 +59,19 @@ describe('Invoices', () => {
       metadataHash: Field(0)
     })];
 
-    console.log('x');
     const txn = await Mina.transaction(deployerAccount, () => {
       AccountUpdate.fundNewAccount(deployerAccount);
       zkApp.deploy({});
       zkApp.account.tokenSymbol.set('bills');
       zkApp.tokenZkAppVkHash.set(vkInvoices.hash);
     });
-    console.log('y');
     await txn.prove();
     // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
     await txn.sign([deployerKey, zkAppPrivateKey]).send();
-    console.log('z');
   }
 
   it('generates and deploys the `Invoices` smart contract', async () => {
-    console.log('a');
     await localDeploy();
-    console.log('b');
 
     const txn = await Mina.transaction(deployerAccount, () => {
       AccountUpdate.fundNewAccount(deployerAccount);
@@ -86,4 +81,49 @@ describe('Invoices', () => {
     // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
     await txn.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
   });
+
+  it('should not allow multiple calls to mint from same user', async () => {
+    await localDeploy();
+
+    const txn = await Mina.transaction(deployerAccount, () => {
+      AccountUpdate.fundNewAccount(deployerAccount);
+      zkApp.mint(testAccounts[2].publicKey, vkInvoices, Tree.getRoot(), Field.from(1000));
+    }); 
+    await txn.prove();
+    // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
+    await txn.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
+
+    try {
+      const txn2 = await Mina.transaction(deployerAccount, () => {
+        AccountUpdate.fundNewAccount(deployerAccount);
+        zkApp.mint(testAccounts[2].publicKey, vkInvoices, Tree.getRoot(), Field.from(1000));
+      }); 
+      await txn2.prove();
+      // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
+      await txn2.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
+    } catch (err: any) {
+      expect(err.message).toEqual('Token already minted');
+    }
+  });
+
+  it('should increase limit of invoices', async () => {
+    await localDeploy();
+
+    const txn = await Mina.transaction(deployerAccount, () => {
+      AccountUpdate.fundNewAccount(deployerAccount);
+      zkApp.mint(testAccounts[2].publicKey, vkInvoices, Tree.getRoot(), Field.from(1000));
+    }); 
+    await txn.prove();
+    // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
+    await txn.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
+
+    const txn2 = await Mina.transaction(deployerAccount, () => {
+      AccountUpdate.fundNewAccount(deployerAccount);
+      zkApp.increaseLimit(testAccounts[2].publicKey, UInt32.from(1000));
+    }); 
+    await txn2.prove();
+    // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
+    await txn2.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
+  });
+
 });

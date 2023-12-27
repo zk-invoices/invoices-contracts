@@ -118,7 +118,7 @@ describe('Invoices', () => {
     await txn2.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
   });
 
-  it.only('should create invoice and reduce limit', async () => {
+  it('should create invoice and reduce limit', async () => {
     await localDeploy();
 
     const invoice = new Invoice({
@@ -133,7 +133,7 @@ describe('Invoices', () => {
       AccountUpdate.fundNewAccount(deployerAccount);
       zkApp.mint(testAccounts[2].publicKey, vkInvoices, Tree.getRoot(), Field.from(1000));
     }); 
-    // await txn.prove();
+    await txn.prove();
     // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
     await txn.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
 
@@ -142,8 +142,8 @@ describe('Invoices', () => {
       const witness = Tree.getWitness(0n);
       zkApp.createInvoice(testAccounts[2].publicKey, invoice, new InvoicesWitness(witness));
       zkApp.commit(testAccounts[2].publicKey);
-    }); 
-    // await txn.prove();
+    });
+    await txn2.prove();
     // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
     await txn2.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
   });

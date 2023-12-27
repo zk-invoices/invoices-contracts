@@ -1,4 +1,4 @@
-import { Field, Mina, PrivateKey, PublicKey, AccountUpdate, MerkleTree, UInt32, Bool, VerificationKey, Cache } from 'o1js';
+import { Field, Mina, PrivateKey, PublicKey, AccountUpdate, MerkleTree, UInt32, Bool, VerificationKey, Cache, fetchAccount } from 'o1js';
 import { Invoices } from './Invoices';
 import { Invoice, InvoicesWitness } from './InvoicesModels';
 import { InvoicesProvider } from './InvoicesProvider';
@@ -51,21 +51,13 @@ describe('Invoices', () => {
   });
 
   async function localDeploy() {
-    let invoices = [new Invoice({
-      from: testAccounts[1].publicKey,
-      to: testAccounts[1].publicKey,
-      amount: UInt32.from(1),
-      settled: Bool(false),
-      metadataHash: Field(0)
-    })];
-
     const txn = await Mina.transaction(deployerAccount, () => {
       AccountUpdate.fundNewAccount(deployerAccount);
       zkApp.deploy({});
       zkApp.account.tokenSymbol.set('bills');
       zkApp.tokenZkAppVkHash.set(vkInvoices.hash);
     });
-    await txn.prove();
+    // await txn.prove();
     // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
     await txn.sign([deployerKey, zkAppPrivateKey]).send();
   }
@@ -121,9 +113,38 @@ describe('Invoices', () => {
       AccountUpdate.fundNewAccount(deployerAccount);
       zkApp.increaseLimit(testAccounts[2].publicKey, UInt32.from(1000));
     }); 
-    await txn2.prove();
+    // await txn2.prove();
     // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
     await txn2.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
   });
 
+  it.only('should create invoice and reduce limit', async () => {
+    await localDeploy();
+
+    const invoice = new Invoice({
+      from: testAccounts[1].publicKey,
+      to: testAccounts[1].publicKey,
+      amount: UInt32.from(1),
+      settled: Bool(false),
+      metadataHash: Field(0)
+    })
+
+    const txn = await Mina.transaction(deployerAccount, async () => {
+      AccountUpdate.fundNewAccount(deployerAccount);
+      zkApp.mint(testAccounts[2].publicKey, vkInvoices, Tree.getRoot(), Field.from(1000));
+    }); 
+    // await txn.prove();
+    // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
+    await txn.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
+
+    await fetchAccount({ publicKey: testAccounts[2].publicKey, tokenId: zkApp.token.id });
+    const txn2 = await Mina.transaction(deployerAccount, async () => {
+      const witness = Tree.getWitness(0n);
+      zkApp.createInvoice(testAccounts[2].publicKey, invoice, new InvoicesWitness(witness));
+      zkApp.commit(testAccounts[2].publicKey);
+    }); 
+    // await txn.prove();
+    // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
+    await txn2.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
+  });
 });

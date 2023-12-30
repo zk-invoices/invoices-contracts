@@ -1,5 +1,6 @@
-import { Invoices, InvoiceOperation } from './Invoices';
+import { Invoices, InvoiceOperation } from './Invoices.js';
+import { InvoicesProvider } from './InvoicesProvider.js';
 
-import { InvoicesWitness, Invoice } from './InvoicesModels';
+import { InvoicesWitness, Invoice } from './InvoicesModels.js';
 
-export { Invoices, InvoiceOperation, InvoicesWitness, Invoice };
+export { Invoices, InvoicesProvider, InvoiceOperation, InvoicesWitness, Invoice };

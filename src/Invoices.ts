@@ -24,8 +24,8 @@ import {
   UInt64,
   UInt32,
 } from 'o1js';
-import { Invoice } from './InvoicesModels';
-import { InvoicesWitness } from './InvoicesModels';
+import { Invoice } from './InvoicesModels.js';
+import { InvoicesWitness } from './InvoicesModels.js';
 
 
 // we now need "wrap" the Merkle tree around our off-chain storage

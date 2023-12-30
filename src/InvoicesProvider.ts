@@ -14,8 +14,8 @@ import {
   State,
   state
 } from 'o1js';
-import { Invoice, InvoicesWitness } from './InvoicesModels';
-import { Invoices } from './Invoices';
+import { Invoice, InvoicesWitness } from './InvoicesModels.js';
+import { Invoices } from './Invoices.js';
 
 export class InvoicesProvider extends SmartContract {
   @state(Field) tokenZkAppVkHash = State<Field>();

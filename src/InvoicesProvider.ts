@@ -35,12 +35,12 @@ export class InvoicesProvider extends SmartContract {
   @method
   mint(address: PublicKey, vk: VerificationKey, initialRoot: Field, initialLimit: Field) {
     const isNewAccount = Account(address, this.token.id).isNew.getAndRequireEquals();
-    this.token.mint({ address, amount: 1 });
-
     isNewAccount.assertTrue('Token already minted');
 
     const zkAppVerificationKeyHash = this.tokenZkAppVkHash.getAndRequireEquals();
     vk.hash.assertEquals(zkAppVerificationKeyHash, 'Verification key hash does not match');
+
+    this.token.mint({ address, amount: 1 });
 
     const update = AccountUpdate.createSigned(address, this.token.id);
 

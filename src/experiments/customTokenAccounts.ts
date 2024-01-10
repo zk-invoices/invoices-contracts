@@ -195,7 +195,8 @@ export class Invoices extends SmartContract {
   }
 
   @method increaseLimit(amount: UInt64) {
-    const newLimit = this.limit.get().add(amount);
+    const currentLimit = this.limit.getAndRequireEquals();
+    const newLimit = currentLimit.add(amount);
 
     this.limit.set(newLimit);
   }

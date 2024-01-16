@@ -1,21 +1,20 @@
 {
   "version": 1,
   "deployAliases": {
+    "berkeleyx": {
+      "url": "https://proxy.berkeley.minaexplorer.com/graphql",
+      "keyPath": "keys/berkeley.json",
+      "feepayerKeyPath": "/Users/shashank/.cache/zkapp-cli/keys/testnet.json",
+      "feepayerAlias": "testnet",
+      "fee": "0.2",
+      "smartContract": "InvoicesProvider"
+    },
     "berkeley": {
       "url": "https://proxy.berkeley.minaexplorer.com/graphql",
       "keyPath": "keys/berkeley.json",
       "feepayerKeyPath": "/Users/shashank/.cache/zkapp-cli/keys/testnet.json",
       "feepayerAlias": "testnet",
-      "fee": "0.1",
-      "smartContract": "Invoices"
-    },
-    "testnet": {
-      "url": "https://proxy.berkeley.minaexplorer.com/graphql",
-      "keyPath": "keys/testnet.json",
-      "feepayerKeyPath": "/Users/shashank/.cache/zkapp-cli/keys/testnet.json",
-      "feepayerAlias": "testnet",
-      "fee": "0.1",
-      "smartContract": "Invoices"
+      "fee": "0.1"
     },
     "test": {
       "url": "https://proxy.berkeley.minaexplorer.com/graphql",
@@ -23,15 +22,7 @@
       "feepayerKeyPath": "/Users/shashank/.cache/zkapp-cli/keys/testnet.json",
       "feepayerAlias": "testnet",
       "fee": "0.1",
-      "smartContract": "Invoices"
-    },
-    "demo": {
-      "url": "https://proxy.berkeley.minaexplorer.com/graphql",
-      "keyPath": "keys/demo.json",
-      "feepayerKeyPath": "/Users/shashank/.cache/zkapp-cli/keys/testnet.json",
-      "feepayerAlias": "testnet",
-      "fee": "0.1",
-      "smartContract": "Invoices"
+      "smartContract": "InvoicesProvider"
     }
   }
 }

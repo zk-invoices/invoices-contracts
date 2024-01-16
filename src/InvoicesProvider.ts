@@ -32,6 +32,12 @@ export class InvoicesProvider extends SmartContract {
     });
   }
 
+  @method upgradeRoot(vKey: VerificationKey) {
+    this.tokenZkAppVkHash.getAndRequireEquals();
+
+    this.tokenZkAppVkHash.set(vKey.hash);
+  }
+
   @method
   mint(address: PublicKey, vk: VerificationKey, initialRoot: Field, initialLimit: Field) {
     const isNewAccount = Account(address, this.token.id).isNew.getAndRequireEquals();

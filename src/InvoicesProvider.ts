@@ -28,18 +28,22 @@ export class InvoicesProvider extends SmartContract {
       incrementNonce: Permissions.proofOrSignature(),
       setVotingFor: Permissions.proof(),
       setTiming: Permissions.proof(),
-      send: Permissions.proofOrSignature()
+      send: Permissions.proofOrSignature(),
+      editState: Permissions.proof()
     });
   }
 
   @method upgradeRoot(vKey: VerificationKey) {
+    // Make sure only owner can upgrade the root
+    this.requireSignature();
+
     this.tokenZkAppVkHash.getAndRequireEquals();
 
     this.tokenZkAppVkHash.set(vKey.hash);
   }
 
   @method
-  mint(address: PublicKey, vk: VerificationKey, initialRoot: Field, initialLimit: Field) {
+  mint(address: PublicKey, vk: VerificationKey, initialRoot: Field) {
     const isNewAccount = Account(address, this.token.id).isNew.getAndRequireEquals();
     isNewAccount.assertTrue('Token already minted');
 
@@ -59,7 +63,8 @@ export class InvoicesProvider extends SmartContract {
         incrementNonce: Permissions.proofOrSignature(),
         setVotingFor: Permissions.proof(),
         setTiming: Permissions.proof(),
-        send: Permissions.proofOrSignature()
+        send: Permissions.proofOrSignature(),
+        editState: Permissions.signature()
       },
     };
 
@@ -67,7 +72,7 @@ export class InvoicesProvider extends SmartContract {
       { isSome: Bool(true), value: vk.hash },
       { isSome: Bool(true), value: initialRoot },
       { isSome: Bool(true), value: Reducer.initialActionState },
-      { isSome: Bool(true), value: Field.from(initialLimit) },
+      { isSome: Bool(true), value: Field.from(0) },
       { isSome: Bool(true), value: Field.from(0) },
       { isSome: Bool(true), value: Field(0) },
       { isSome: Bool(true), value: Field(0) },
@@ -106,6 +111,8 @@ export class InvoicesProvider extends SmartContract {
   }
 
   @method increaseLimit(address: PublicKey, amount: UInt32) {
+    this.requireSignature();
+
     const zkAppTokenAccount = this.getZkAppAccount(address);
     zkAppTokenAccount.increaseLimit(amount);
   }

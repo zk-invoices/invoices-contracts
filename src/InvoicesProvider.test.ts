@@ -72,7 +72,7 @@ describe.only('Invoices Provider', () => {
   async function mintAccount(privateKey: PrivateKey, gasFees = true) {
     const txn = await Mina.transaction(deployerAccount, async () => {
       gasFees && AccountUpdate.fundNewAccount(deployerAccount);
-      zkApp.mint(privateKey.toPublicKey(), vkInvoices, Tree.getRoot(), Field.from(1000));
+      zkApp.mint(privateKey.toPublicKey(), vkInvoices, Tree.getRoot());
     }); 
 
     // printTxn(txn, 'first', legend);

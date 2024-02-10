@@ -9,7 +9,7 @@ import { Field, Mina, PrivateKey, PublicKey, AccountUpdate, MerkleTree, UInt32, 
  * See https://docs.minaprotocol.com/zkapps for more info.
  */
 
-let proofsEnabled = false;
+let proofsEnabled = true;
 
 describe('Invoices', () => {
   let deployerAccount: PublicKey,

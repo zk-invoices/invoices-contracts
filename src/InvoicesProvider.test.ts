@@ -10,9 +10,9 @@ import { LocalBlockchain } from 'o1js/dist/node/lib/mina';
  * See https://docs.minaprotocol.com/zkapps for more info.
  */
 
-let proofsEnabled = false;
+let proofsEnabled = true;
 
-describe.only('Invoices Provider', () => {
+describe('Invoices Provider', () => {
   let deployerAccount: PublicKey,
     deployerKey: PrivateKey,
     senderAccount: PublicKey,
@@ -125,10 +125,10 @@ describe.only('Invoices Provider', () => {
 
     const txn2 = await Mina.transaction(deployerAccount, () => {
       zkApp.increaseLimit(userKey.publicKey, UInt32.from(1000));
-    }); 
+    });
 
     await txn2.prove();
-    await txn2.sign([deployerKey, zkAppPrivateKey, testAccounts[2].privateKey]).send();
+    await txn2.sign([deployerKey, zkAppPrivateKey]).send();
   });
 
   it('should create invoice and reduce limit', async () => {
@@ -147,13 +147,49 @@ describe.only('Invoices Provider', () => {
     await mintAccount(userKey.privateKey);
     await mintAccount(receiverKey.privateKey);
 
-    const txn = await Mina.transaction(senderAccount, async () => {
-      const witness = Tree.getWitness(0n);
-      zkApp.createInvoice(userKey.publicKey, invoice, new InvoicesWitness(witness));
-        zkApp.commit(userKey.publicKey);
-    });
+    {
+      console.log('txn1');
+      const txn = await Mina.transaction(deployerAccount, async () => {
+        zkApp.increaseLimit(userKey.publicKey, UInt32.from(1000));
+      });
+  
+      await txn.prove();
+      await txn.sign([zkAppPrivateKey, deployerKey]).send();
+    }
 
-    await txn.prove();
-    await txn.sign([zkAppPrivateKey, userKey.privateKey, receiverKey.privateKey, deployerKey]).send();
+    {
+      console.log('txn2');
+      const invoicesApp = new Invoices(userKey.publicKey, zkApp.token.id);
+      const txn = await Mina.transaction(userKey.publicKey, async () => {
+        const witness = Tree.getWitness(0n);
+        zkApp.createInvoice(userKey.publicKey, invoice, new InvoicesWitness(witness));
+      });
+
+      console.log(txn.toPretty());
+  
+      await txn.prove();
+      await txn.sign([zkAppPrivateKey, userKey.privateKey]).send();
+    }
+
+    {
+      console.log('txn3');
+      const txn = await Mina.transaction(receiverKey.publicKey, async () => {
+        const witness = Tree.getWitness(0n);
+        zkApp.settleInvoice(invoice.from, invoice, new InvoicesWitness(witness));
+      });
+  
+      await txn.prove();
+      await txn.sign([receiverKey.privateKey, zkAppPrivateKey]).send();
+    }
+
+    {
+      console.log('txn4');
+      const txn = await Mina.transaction(receiverKey.publicKey, async () => {
+        zkApp.commit(invoice.from);
+      });
+  
+      await txn.prove();
+      await txn.sign([receiverKey.privateKey, zkAppPrivateKey]).send();
+    }
   });
 });

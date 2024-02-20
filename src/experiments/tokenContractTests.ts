@@ -12,7 +12,6 @@ import {
   Mina,
   PrivateKey,
   MerkleTree,
-  UInt32,
   MerkleWitness,
   Struct,
   Poseidon,
@@ -21,8 +20,8 @@ import {
   Reducer,
   Provable,
   UInt64,
-  Account,
-  fetchAccount
+  TokenContract,
+  AccountUpdateForest,
 } from 'o1js';
 
 export class InvoicesWitness extends MerkleWitness(32) {}
@@ -82,7 +81,7 @@ export class InvoiceOperation extends Struct({
   }
 }
 
-export class Invoices extends SmartContract {
+class Invoices extends SmartContract {
   @state(Field) sentInvoices = State<Field>();
   @state(Field) accumulated = State<Field>();
   @state(UInt64) limit = State<UInt64>();
@@ -92,16 +91,14 @@ export class Invoices extends SmartContract {
 
   @method
   createInvoice(invoice: Invoice, path: InvoicesWitness) {
-    let commit = this.sentInvoices.get();
-    this.sentInvoices.requireEquals(commit);
+    let commit = this.sentInvoices.getAndRequireEquals();
 
     path
       .calculateRoot(Field(0))
       .equals(commit)
       .assertTrue('The invoice already exists');
 
-    let accumulated = this.accumulated.get();
-    this.accumulated.assertEquals(accumulated);
+    let accumulated = this.accumulated.getAndRequireEquals();
 
     let pendingActions = this.reducer.getActions({
       fromActionState: accumulated,
@@ -125,11 +122,8 @@ export class Invoices extends SmartContract {
 
   @method
   settleInvoice(invoice: Invoice, path: InvoicesWitness) {
-    let commit = this.sentInvoices.get();
-    this.sentInvoices.assertEquals(commit);
-
-    let accumulated = this.accumulated.get();
-    this.accumulated.assertEquals(accumulated);
+    let commit = this.sentInvoices.getAndRequireEquals();
+    let accumulated = this.accumulated.getAndRequireEquals();
 
     invoice.settled.assertFalse('Invoice is already settled');
     let isCreateCommitted = path.calculateRoot(invoice.hash()).equals(commit);
@@ -205,7 +199,7 @@ export class Invoices extends SmartContract {
 
 const doProofs = true;
 
-export class InvoiceProvider extends SmartContract {
+class InvoiceProvider extends TokenContract {
   deploy(args: DeployArgs) {
     super.deploy(args);
     this.account.permissions.set({
@@ -216,6 +210,11 @@ export class InvoiceProvider extends SmartContract {
       setTiming: Permissions.proof(),
       send: Permissions.proofOrSignature()
     });
+  }
+
+  @method
+  approveBase(updates: AccountUpdateForest) {
+    this.checkZeroBalanceChange(updates);
   }
 
   @method
@@ -247,21 +246,32 @@ export class InvoiceProvider extends SmartContract {
     ];
   }
 
-  @method createInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness) {
-    Provable.log(address);
+  @method createInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness, to: PublicKey) {
     const zkAppTokenAccount = new Invoices(address, this.token.id);
 
+    this.token.mint({
+      address: to,
+      amount: 1
+    });
+
     zkAppTokenAccount.createInvoice(invoice, path);
+
+    this.approveAccountUpdate(zkAppTokenAccount.self)
   }
+
 
   @method settleInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness) {
     const zkAppTokenAccount = new Invoices(address, this.token.id);
+
     zkAppTokenAccount.settleInvoice(invoice, path);
+    this.approveAccountUpdate(zkAppTokenAccount.self);
   }
 
   @method commit(address: PublicKey) {
     const zkAppTokenAccount = new Invoices(address, this.token.id);
+
     zkAppTokenAccount.commit();
+    this.approveAccountUpdate(zkAppTokenAccount.self);
   }
 }
 
@@ -290,10 +300,12 @@ async function run() {
   let tokensApp = new InvoiceProvider(zkappAddress);
   console.log('Deploying nested tokens');
   console.time();
+  const cache: Cache = Cache.FileSystem("./localcache");
+  const ocache: Cache = Cache.FileSystem("./olocalcache");
   
-  const { verificationKey } = (await Invoices.compile());
+  const { verificationKey } = (await Invoices.compile({ cache: ocache }));
 
-  await InvoiceProvider.compile();
+  await InvoiceProvider.compile({ cache });
   console.timeEnd();
   console.log('compiled');
   let tx = await Mina.transaction(feePayer, () => {
@@ -338,19 +350,17 @@ async function run() {
 
   async function update() {
     console.log('updating');
-    console.log('user', userPublicKey.toBase58());
-    console.log('receiver', receiverPublicKey.toBase58());
     const w = Tree.getWitness(0n);
     let witness = new InvoicesWitness(w);
 
     let tx = await Mina.transaction(userPublicKey, () => {
-      tokensApp.createInvoice(userPublicKey, invoice, witness);
+      tokensApp.createInvoice(userPublicKey, invoice, witness, invoice.to);
     });
 
     console.log(tx.toPretty());
 
     await tx.prove();
-    await tx.sign([feePayerKey, userPrivateKey]).send();
+    await tx.sign([feePayerKey, zkappKey, userPrivateKey, receiverPrivateKey]).send();
 
     Tree.setLeaf(0n, invoice.hash());
   }

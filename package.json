@@ -38,6 +38,6 @@
   "dependencies": {
     "global": "^4.4.0",
     "o1js": "^0.16.2",
-    "zkapp-cli": "^0.16.0"
+    "zkapp-cli": "^0.17.2"
   }
 }

@@ -40,7 +40,7 @@ export class InvoiceOperation extends Struct({
     return this.type.equals(Field(0));
   }
 
-  isSettle() {
+  isClaim() {
     return this.type.equals(Field(1));
   }
 
@@ -52,7 +52,7 @@ export class InvoiceOperation extends Struct({
     });
   }
 
-  static settle(invoice: Invoice, witness: InvoicesWitness) {
+  static claim(invoice: Invoice, witness: InvoicesWitness) {
     return new InvoiceOperation({
       type: Field(1),
       invoice,
@@ -122,11 +122,11 @@ export class Invoices extends SmartContract {
   }
 
   @method
-  settleInvoice(invoice: Invoice, path: InvoicesWitness) {
+  claimInvoice(invoice: Invoice, path: InvoicesWitness) {
     let commit = this.commitment.getAndRequireEquals();
     let accumulated = this.accumulated.getAndRequireEquals();
 
-    invoice.settled.assertFalse('Invoice is already settled');
+    invoice.settled.assertFalse('Invoice is already claimed');
     let isCreateCommitted = path.calculateRoot(invoice.hash()).equals(commit);
 
     let { state: isCreatePending } = this.reducer.reduce(
@@ -142,20 +142,20 @@ export class Invoices extends SmartContract {
 
     isCreateCommitted.or(isCreatePending).assertTrue('Invoice not created yet');
 
-    let { state: isSettlePending } = this.reducer.reduce(
+    let { state: isClaimPending } = this.reducer.reduce(
       this.reducer.getActions({ fromActionState: accumulated }),
       Bool,
       (state: Bool, action: InvoiceOperation) => {
         return Bool(
-          action.isSettle().and(action.invoice.hash().equals(invoice.hash()))
+          action.isClaim().and(action.invoice.hash().equals(invoice.hash()))
         ).or(state);
       },
       { state: Bool(false), actionState: accumulated }
     );
 
-    isSettlePending.assertFalse('Invoice settlement already in queue');
+    isClaimPending.assertFalse('Invoice settlement already in queue');
 
-    this.reducer.dispatch(InvoiceOperation.settle(invoice, path));
+    this.reducer.dispatch(InvoiceOperation.claim(invoice, path));
   }
 
   @method
@@ -182,7 +182,7 @@ export class Invoices extends SmartContract {
             Provable.if(
               action.isCreate(),
               action.invoice.hash(),
-              action.invoice.settle().hash()
+              action.invoice.claim().hash()
             )
           );
         },

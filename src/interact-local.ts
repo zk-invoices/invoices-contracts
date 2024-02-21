@@ -109,7 +109,7 @@ async function run() {
     let witness = new InvoicesWitness(w);
 
     let tx = await Mina.transaction(feePayer, () => {
-      leaderboardZkApp.settleInvoice(invoice, witness);
+      leaderboardZkApp.claimInvoice(invoice, witness);
     });
     await tx.prove();
     await tx.sign([feePayerKey, zkappKey]).send();

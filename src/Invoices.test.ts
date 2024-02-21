@@ -101,12 +101,12 @@ describe('Invoices', () => {
     Tree.setLeaf(1n, invoices[0].hash());
 
     const txn5 = await Mina.transaction(senderAccount, () => {
-      zkApp.settleInvoice(invoices[0], new InvoicesWitness(Tree.getWitness(0n)));
+      zkApp.claimInvoice(invoices[0], new InvoicesWitness(Tree.getWitness(0n)));
     });
     await txn5.prove();
     await txn5.sign([senderKey]).send();
 
-    Tree.setLeaf(0n, invoices[0].settle().hash());
+    Tree.setLeaf(0n, invoices[0].claim().hash());
 
     const txn7 = await Mina.transaction(senderAccount, () => {
       zkApp.commit();
@@ -129,11 +129,11 @@ describe('Invoices', () => {
     Tree.setLeaf(0n, invoices[0].hash());
 
     const txn2 = await Mina.transaction(senderAccount, () => {
-      zkApp.settleInvoice(invoices[0], new InvoicesWitness(Tree.getWitness(0n)));
+      zkApp.claimInvoice(invoices[0], new InvoicesWitness(Tree.getWitness(0n)));
     });
     await txn2.prove();
     await txn2.sign([senderKey]).send();
-    Tree.setLeaf(0n, invoices[0].settle().hash());
+    Tree.setLeaf(0n, invoices[0].claim().hash());
 
     const txn3 = await Mina.transaction(senderAccount, () => {
       zkApp.commit();

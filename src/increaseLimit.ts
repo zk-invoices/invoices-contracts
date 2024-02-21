@@ -13,7 +13,7 @@
  * Run with node:     `$ node build/src/interact.js <deployAlias>`.
  */
 import fs from 'fs/promises';
-import { Bool, Field, MerkleTree, Mina, PrivateKey, UInt32, Cache, fetchAccount, Provable, PublicKey } from 'o1js';
+import { Mina, PrivateKey, UInt32, fetchAccount, PublicKey } from 'o1js';
 import { Invoices } from './Invoices.js';
 import { InvoicesProvider } from './InvoicesProvider.js';
 
@@ -83,7 +83,6 @@ try {
   await fetchAccount({ publicKey: zkAppAddress }, 'https://api.minascan.io/node/berkeley/v1/graphql');
   await fetchAccount({ publicKey: userAddress, tokenId: zkApp.token.id }, 'https://api.minascan.io/node/berkeley/v1/graphql');
 
-  console.log('tokenId', zkApp.token.id.toString());
   let tx = await Mina.transaction({ sender: feepayerAddress, fee }, () => {
     zkApp.increaseLimit(userAddress, UInt32.from(1000));
   });

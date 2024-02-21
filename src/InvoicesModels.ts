@@ -22,7 +22,7 @@ export class Invoice extends Struct({
     return Poseidon.hash(Invoice.toFields(this));
   }
 
-  settle() {
+  claim() {
     return new Invoice({
       from: this.from,
       to: this.to,

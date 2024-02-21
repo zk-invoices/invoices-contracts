@@ -2,7 +2,6 @@ import {
   Field,
   AccountUpdate,
   Bool,
-  SmartContract,
   DeployArgs,
   PublicKey,
   VerificationKey,
@@ -13,12 +12,14 @@ import {
   UInt32,
   State,
   state,
+  TokenContract,
+  AccountUpdateForest,
   Provable
 } from 'o1js';
 import { Invoice, InvoicesWitness } from './InvoicesModels.js';
 import { Invoices } from './Invoices.js';
 
-export class InvoicesProvider extends SmartContract {
+export class InvoicesProviderToken extends TokenContract {
   @state(Field) tokenZkAppVkHash = State<Field>();
 
   deploy(args: DeployArgs) {
@@ -29,9 +30,15 @@ export class InvoicesProvider extends SmartContract {
       incrementNonce: Permissions.proofOrSignature(),
       setVotingFor: Permissions.proof(),
       setTiming: Permissions.proof(),
-      send: Permissions.proofOrSignature(),
-      editState: Permissions.proof()
+      send: Permissions.proofOrSignature()
     });
+  }
+
+  @method
+  approveBase(updates: AccountUpdateForest) {
+    // TODO: Add some sort of verification for account updates
+
+    this.checkZeroBalanceChange(updates);
   }
 
   @method upgradeRoot(vKey: VerificationKey) {
@@ -61,8 +68,7 @@ export class InvoicesProvider extends SmartContract {
         incrementNonce: Permissions.proofOrSignature(),
         setVotingFor: Permissions.proof(),
         setTiming: Permissions.proof(),
-        send: Permissions.proofOrSignature(),
-        editState: Permissions.signature()
+        send: Permissions.proofOrSignature()
       },
     };
 
@@ -94,25 +100,31 @@ export class InvoicesProvider extends SmartContract {
     const zkAppTokenAccount = this.getZkAppAccount(address);
 
     zkAppTokenAccount.createInvoice(invoice, path);
+    this.approveAccountUpdate(zkAppTokenAccount.self);
   }
 
-  @method settleInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness) {
+  @method claimInvoice(address: PublicKey, invoice: Invoice, path: InvoicesWitness) {
     const zkAppTokenAccount = this.getZkAppAccount(address);
 
     zkAppTokenAccount.claimInvoice(invoice, path);
+    this.approveAccountUpdate(zkAppTokenAccount.self);
   }
 
   @method commit(address: PublicKey) {
     const zkAppTokenAccount = this.getZkAppAccount(address);
 
     zkAppTokenAccount.commit();
+    this.approveAccountUpdate(zkAppTokenAccount.self);
   }
 
   @method increaseLimit(address: PublicKey, amount: UInt32) {
-    this.requireSignature();
-
     const zkAppTokenAccount = this.getZkAppAccount(address);
+
     zkAppTokenAccount.increaseLimit(amount);
+
+    Provable.log(zkAppTokenAccount.self);
+
+    this.approveAccountUpdate(zkAppTokenAccount.self);
   }
 
   getZkAppAccount(address: PublicKey): Invoices {

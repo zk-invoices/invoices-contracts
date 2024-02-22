@@ -1,22 +1,7 @@
-/**
- * This script can be used to interact with the Add contract, after deploying it.
- *
- * We call the update() method on the contract, create a proof and send it to the chain.
- * The endpoint that we interact with is read from your config.json.
- *
- * This simulates a user interacting with the zkApp from a browser, except that here, sending the transaction happens
- * from the script and we're using your pre-funded zkApp account to pay the transaction fee. In a real web app, the user's wallet
- * would send the transaction and pay the fee.
- *
- * To run locally:
- * Build the project: `$ npm run build`
- * Run with node:     `$ node build/src/interact.js <deployAlias>`.
- */
 import fs from 'fs/promises';
-import { Bool, Field, MerkleTree, Mina, PrivateKey, UInt32, Cache, fetchAccount, Provable, PublicKey } from 'o1js';
-import { Invoice, InvoicesWitness } from './InvoicesModels.js';
-import { Invoices } from './Invoices.js';
-import { InvoicesProvider } from './InvoicesProvider.js';
+import { Mina, PrivateKey, fetchAccount, Provable } from 'o1js';
+import { Invoices } from '../Invoices.js';
+import { InvoicesProviderToken as InvoicesProvider } from '../InvoicesProviderToken.js';
 
 // check command line arg
 let deployAlias = process.argv[2];
@@ -24,7 +9,7 @@ if (!deployAlias)
   throw Error(`Missing <deployAlias> argument.
 
 Usage:
-node build/src/interact.js <deployAlias>
+node build/src/actions/setVerificationKeyHash.js <deployAlias>
 `);
 Error.stackTraceLimit = 1000;
 
@@ -72,12 +57,9 @@ let sentTx;
 // compile the contract to create prover keys
 console.log('compile the contract...');
 
-const invoicesCache: Cache = Cache.FileSystem("../cache/invoicescache");
-const providerCache: Cache = Cache.FileSystem("../cache/providercache");
+await InvoicesProvider.compile();
 
-await InvoicesProvider.compile({ cache: providerCache });
-
-const verificationKey = await Invoices.compile({ cache: invoicesCache });
+const verificationKey = await Invoices.compile();
 
 try {
   // call update() and send transaction

@@ -1,4 +1,4 @@
-import { Field, Mina, PrivateKey, PublicKey, AccountUpdate, MerkleTree, UInt32, Bool, VerificationKey, Signature } from 'o1js';
+import { Field, Mina, PrivateKey, PublicKey, AccountUpdate, MerkleTree, UInt32, Bool, VerificationKey } from 'o1js';
 import { Invoices } from './Invoices';
 import { Invoice, InvoicesWitness } from './InvoicesModels';
 import { InvoicesProviderToken as InvoicesProvider } from './InvoicesProviderToken';
@@ -141,6 +141,8 @@ describe('Invoices Provider', () => {
     console.log('end local deploy');
 
     const invoice = new Invoice({
+      id: Field(1),
+      dueDate: UInt32.from(Date.now()),
       from: userKey.publicKey,
       to: receiverKey.publicKey,
       amount: UInt32.from(1),

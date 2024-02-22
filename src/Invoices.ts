@@ -23,6 +23,8 @@ import {
   Provable,
   UInt64,
   UInt32,
+  Permissions,
+  DeployArgs,
 } from 'o1js';
 import { Invoice } from './InvoicesModels.js';
 import { InvoicesWitness } from './InvoicesModels.js';
@@ -68,7 +70,26 @@ export class Invoices extends SmartContract {
   @state(UInt64) limit = State<UInt32>();
   @state(UInt64) usage = State<UInt32>();
 
+  events = {
+    'invoice-created': Field,
+    'invoice-claimed': Field,
+    'actions-committed': Field,
+  }
+
   reducer = Reducer({ actionType: InvoiceOperation });
+
+  deploy(args: DeployArgs) {
+    super.deploy(args);
+    this.account.permissions.set({
+      ...Permissions.default(),
+      setDelegate: Permissions.proof(),
+      incrementNonce: Permissions.proofOrSignature(),
+      setVotingFor: Permissions.proof(),
+      setTiming: Permissions.proof(),
+      send: Permissions.proofOrSignature(),
+      editState: Permissions.signature()
+    });
+  }
 
   @method init() {
     super.init();
@@ -119,6 +140,7 @@ export class Invoices extends SmartContract {
     currentUsed.add(invoice.amount).assertLessThanOrEqual(usedLimit, 'Limit already used');
 
     this.reducer.dispatch(InvoiceOperation.create(invoice, path));
+    this.emitEvent('invoice-created', invoice.id);
   }
 
   @method
@@ -156,6 +178,7 @@ export class Invoices extends SmartContract {
     isClaimPending.assertFalse('Invoice settlement already in queue');
 
     this.reducer.dispatch(InvoiceOperation.claim(invoice, path));
+    this.emitEvent('invoice-claimed', invoice.id);
   }
 
   @method
@@ -206,6 +229,7 @@ export class Invoices extends SmartContract {
     this.usage.set(newUsage);
     this.commitment.set(newCommitment);
     this.accumulated.set(newAccumulated);
+    this.emitEvent('actions-committed', newCommitment);
   }
 
   @method

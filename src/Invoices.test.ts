@@ -43,6 +43,8 @@ describe('Invoices', () => {
     Tree = new MerkleTree(32);
 
     invoices = [new Invoice({
+      id: Field(1),
+      dueDate: UInt32.from(Date.now()),
       from: Local.testAccounts[1].publicKey,
       to: Local.testAccounts[1].publicKey,
       amount: UInt32.from(1),
@@ -54,7 +56,7 @@ describe('Invoices', () => {
   async function localDeploy() {
     const txn = await Mina.transaction(deployerAccount, () => {
       AccountUpdate.fundNewAccount(deployerAccount);
-      zkApp.deploy();
+      zkApp.deploy({});
       zkApp.commitment.set(Tree.getRoot());
     });
     await txn.prove();
@@ -149,6 +151,8 @@ describe('Invoices', () => {
     await localDeploy();
 
     const overLimitInvoice = new Invoice({
+      id: Field(1),
+      dueDate: UInt32.from(Date.now()),
       from: testAccounts[1].publicKey,
       to: testAccounts[1].publicKey,
       amount: UInt32.from(1000000),
@@ -172,6 +176,8 @@ describe('Invoices', () => {
     await localDeploy();
 
     const overLimitInvoice = new Invoice({
+      id: Field(1),
+      dueDate: UInt32.from(Date.now()),
       from: testAccounts[1].publicKey,
       to: testAccounts[1].publicKey,
       amount: UInt32.from(1000000),

@@ -1,5 +1,5 @@
 import { Invoices, InvoiceOperation } from './Invoices.js';
-import { InvoicesProvider } from './InvoicesProvider.js';
+import { InvoicesProviderToken as InvoicesProvider } from './InvoicesProviderToken.js';
 
 import { InvoicesWitness, Invoice } from './InvoicesModels.js';
 

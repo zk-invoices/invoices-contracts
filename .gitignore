@@ -14,3 +14,5 @@ keys
 nftcache
 localcache
 olocalcache
+
+.env

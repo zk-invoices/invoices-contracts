@@ -1,10 +1,11 @@
-import { Field, MerkleTree, UInt32, PrivateKey, Bool, verify } from 'o1js';
+import { Field, MerkleTree, UInt32, PrivateKey, Bool, verify, Signature } from 'o1js';
 import { Invoice, InvoicesWitness } from './InvoicesModels.js';
 
 import InvoicesProgram, { InvoicesState } from './InvoicesProgram.js';
 
 describe('InvoicesProgram', () => {
   it('test basic functions', async () => {
+    const userPrivateKey = PrivateKey.random();
     console.log('start');
 
     console.time('compile');
@@ -12,7 +13,8 @@ describe('InvoicesProgram', () => {
     console.timeEnd('compile');
 
     console.time('init');
-    const proof = await InvoicesProgram.init(InvoicesState.empty());
+    const initSign = Signature.create(userPrivateKey, Field(0).toFields());
+    const proof = await InvoicesProgram.init({ state: InvoicesState.empty(), operator: userPrivateKey.toPublicKey() }, initSign);
     console.timeEnd('init');
 
     const tree = new MerkleTree(32);
@@ -26,15 +28,17 @@ describe('InvoicesProgram', () => {
       to: receiver.toPublicKey(),
       amount: UInt32.from(1),
       settled: Bool(false),
-      metadataHash: Field(0),
+      metadataHash: Field(0)
     });
 
+    const createSign = Signature.create(userPrivateKey, invc.hash().toFields());
     console.time('create');
     const proof1 = await InvoicesProgram.createInvoice(
       proof.publicOutput,
       proof,
       invc,
-      new InvoicesWitness(tree.getWitness(0n))
+      new InvoicesWitness(tree.getWitness(0n)),
+      createSign
     );
     console.timeEnd('create');
 

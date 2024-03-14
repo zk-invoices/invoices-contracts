@@ -10,7 +10,7 @@
  * secure way to get benefits of ZK tech.
  */
 
-import { SelfProof, Field, ZkProgram, Struct, MerkleTree } from 'o1js';
+import { SelfProof, Field, ZkProgram, Struct, MerkleTree, PublicKey, Signature, Provable } from 'o1js';
 import { Invoice, InvoicesWitness } from './InvoicesModels.js';
 
 export class InvoicesState extends Struct({
@@ -59,35 +59,50 @@ export class InvoicesState extends Struct({
   }
 }
 
+class InvoicesProgramInput extends Struct({
+  state: InvoicesState,
+  operator: PublicKey
+}) { }
+
 const InvoicesProgram = ZkProgram({
   name: 'invoices-program',
-  publicInput: InvoicesState,
-  publicOutput: InvoicesState,
+  publicInput: InvoicesProgramInput,
+  publicOutput: InvoicesProgramInput,
 
   methods: {
     init: {
-      privateInputs: [],
-      method() {
+      privateInputs: [Signature],
+      method(pubInput: InvoicesProgramInput, sign: Signature) {
         const tree = new MerkleTree(32);
 
-        return InvoicesState.init(tree.getRoot());
+        sign
+          .verify(pubInput.operator, Field(0).toFields())
+          .assertTrue('Invalid signature provided');
+
+        return { state: InvoicesState.init(tree.getRoot()), operator: pubInput.operator };
       },
     },
 
     createInvoice: {
-      privateInputs: [SelfProof, Invoice, InvoicesWitness],
+      privateInputs: [SelfProof, Invoice, InvoicesWitness, Signature],
       method(
-        state: InvoicesState,
-        earlierProof: SelfProof<InvoicesState, InvoicesState>,
+        pubInput: InvoicesProgramInput,
+        earlierProof: SelfProof<InvoicesProgramInput, InvoicesProgramInput>,
         invoice: Invoice,
-        witness: InvoicesWitness
+        witness: InvoicesWitness,
+        sign: Signature
       ) {
-        state.invoicesRoot.assertEquals(
-          earlierProof.publicOutput.invoicesRoot,
+        pubInput.state.invoicesRoot.assertEquals(
+          earlierProof.publicOutput.state.invoicesRoot,
           'Roots do not match'
         );
 
-        return state.create(invoice, witness);
+        sign.verify(
+          pubInput.operator,
+          invoice.hash().toFields(),
+        ).assertTrue('Invalid signature provided');
+
+        return { state: pubInput.state.create(invoice, witness), operator: pubInput.operator };
       },
     },
   },

@@ -10,21 +10,24 @@
  * secure way to get benefits of ZK tech.
  */
 
-import { SelfProof, Field, ZkProgram, Struct, MerkleTree, PublicKey, Signature, Provable } from 'o1js';
+import { SelfProof, Field, ZkProgram, Struct, MerkleTree, PublicKey, Signature, Provable, UInt32 } from 'o1js';
 import { Invoice, InvoicesWitness } from './InvoicesModels.js';
 
 export class InvoicesState extends Struct({
   invoicesRoot: Field,
+  usedLimit: UInt32
 }) {
   static empty() {
     return new InvoicesState({
       invoicesRoot: Field(0),
+      usedLimit: UInt32.from(0)
     });
   }
 
   static init(invoicesTreeRoot: Field) {
     return new InvoicesState({
       invoicesRoot: invoicesTreeRoot,
+      usedLimit: UInt32.from(0)
     });
   }
 
@@ -40,6 +43,7 @@ export class InvoicesState extends Struct({
 
     return new InvoicesState({
       invoicesRoot: newRoot,
+      usedLimit: this.usedLimit.add(invoice.amount)
     });
   }
 
@@ -55,6 +59,7 @@ export class InvoicesState extends Struct({
 
     return new InvoicesState({
       invoicesRoot: newRoot,
+      usedLimit: this.usedLimit.sub(invoice.amount)
     });
   }
 }
@@ -101,6 +106,9 @@ const InvoicesProgram = ZkProgram({
           pubInput.operator,
           invoice.hash().toFields(),
         ).assertTrue('Invalid signature provided');
+
+
+        earlierProof.verify();
 
         return { state: pubInput.state.create(invoice, witness), operator: pubInput.operator };
       },

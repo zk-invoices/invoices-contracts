@@ -9,8 +9,8 @@ import {
 } from 'o1js';
 
 export class Invoice extends Struct({
-  from: PublicKey,
-  to: PublicKey,
+  seller: PublicKey,
+  buyer:PublicKey,
   amount: UInt64,
   settled: Bool,
   metadataHash: Field,
@@ -21,8 +21,8 @@ export class Invoice extends Struct({
 
   settle() {
     return new Invoice({
-      from: this.from,
-      to: this.to,
+      seller: this.from,
+      buyer:this.to,
       amount: this.amount,
       metadataHash: this.metadataHash,
       settled: Bool(true),
@@ -31,8 +31,8 @@ export class Invoice extends Struct({
 }
 
 const invoice = new Invoice({
-  from: PrivateKey.random().toPublicKey(),
-  to: PrivateKey.random().toPublicKey(),
+  seller: PrivateKey.random().toPublicKey(),
+  buyer:PrivateKey.random().toPublicKey(),
   amount: UInt64.from(1),
   settled: Bool(false),
   metadataHash: Field(0),

@@ -44,8 +44,8 @@ export class InvoiceCart extends Struct({
 
 const keyMap = {
   id: Field(0),
-  from: Field(1),
-  to: Field(2),
+  seller: Field(1),
+  buyer: Field(2),
   amount: Field(3),
   settled: Field(4),
   metadataHash: Field(5),
@@ -54,8 +54,8 @@ const keyMap = {
 
 export class Invoice extends Struct({
   id: Field,
-  from: PublicKey,
-  to: PublicKey,
+  seller: PublicKey,
+  buyer: PublicKey,
   amount: UInt32,
   settled: Bool,
   metadataHash: Field,
@@ -66,8 +66,8 @@ export class Invoice extends Struct({
     const map = new MerkleMap();
 
     map.set(keyMap.id, Poseidon.hash(this.id.toFields()))
-    map.set(keyMap.from, Poseidon.hash(this.from.toFields()))
-    map.set(keyMap.to, Poseidon.hash(this.to.toFields()))
+    map.set(keyMap.seller, Poseidon.hash(this.seller.toFields()))
+    map.set(keyMap.buyer, Poseidon.hash(this.buyer.toFields()))
     map.set(keyMap.amount, Poseidon.hash(this.amount.toFields()))
     map.set(keyMap.metadataHash, Poseidon.hash(this.metadataHash.toFields()))
     map.set(keyMap.dueDate, Poseidon.hash(this.dueDate.toFields()));
@@ -78,8 +78,8 @@ export class Invoice extends Struct({
   claim() {
     return new Invoice({
       id: this.id,
-      from: this.from,
-      to: this.to,
+      seller: this.seller,
+      buyer: this.buyer,
       amount: this.amount,
       metadataHash: this.metadataHash,
       dueDate: this.dueDate,

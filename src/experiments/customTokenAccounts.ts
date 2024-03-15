@@ -28,8 +28,8 @@ import {
 export class InvoicesWitness extends MerkleWitness(32) {}
 
 export class Invoice extends Struct({
-  from: PublicKey,
-  to: PublicKey,
+  seller: PublicKey,
+  buyer:PublicKey,
   amount: UInt64,
   settled: Bool,
   metadataHash: Field,
@@ -40,8 +40,8 @@ export class Invoice extends Struct({
 
   settle() {
     return new Invoice({
-      from: this.from,
-      to: this.to,
+      seller: this.from,
+      buyer:this.to,
       amount: this.amount,
       metadataHash: this.metadataHash,
       settled: Bool(true),
@@ -298,7 +298,7 @@ async function run() {
   console.log('compiled');
   let tx = await Mina.transaction(feePayer, () => {
     AccountUpdate.fundNewAccount(feePayer).send({
-      to: zkappAddress,
+      buyer:zkappAddress,
       amount: initialBalance
     });
     tokensApp.deploy({});
@@ -308,8 +308,8 @@ async function run() {
   await tx.sign([feePayerKey, zkappKey]).send();
 
   const invoice = new Invoice({
-    from: userPublicKey,
-    to: receiverPublicKey,
+    seller: userPublicKey,
+    buyer:receiverPublicKey,
     amount: UInt64.from(1),
     settled: Bool(false),
     metadataHash: Field(0),
@@ -326,7 +326,7 @@ async function run() {
     console.log(`minting for`, publicKey.toBase58());
     let tx = await Mina.transaction(feePayer, () => {
       AccountUpdate.fundNewAccount(feePayer).send({
-        to: publicKey,
+        buyer:publicKey,
         amount: initialBalance
       });
       AccountUpdate.fundNewAccount(feePayer);

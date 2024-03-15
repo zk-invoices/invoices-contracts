@@ -8,9 +8,39 @@ import {
   Struct,
   Bool,
   MerkleMap,
+  Provable,
 } from 'o1js';
 
 export class InvoicesWitness extends MerkleWitness(32) {}
+export class InvoiceCartWiteness extends MerkleWitness(8) {}
+
+export class CartItem extends Struct({
+  id: Field,
+  price: UInt32,
+  quantity: UInt32  
+}) {
+  hash() {
+    const merkleMap = new MerkleMap();
+
+    merkleMap.set(Field(0), Poseidon.hash(this.id.toFields()));
+    merkleMap.set(Field(1), Poseidon.hash(this.price.toFields()));
+    merkleMap.set(Field(2), Poseidon.hash(this.quantity.toFields()));
+
+    return merkleMap.getRoot();
+  }
+}
+
+export class InvoiceCart extends Struct({
+  root: Field,
+  total: UInt32,
+  items: UInt32
+}) {
+  addItem(item: CartItem, itemWitness: InvoiceCartWiteness) {
+    this.items = this.items.add(Provable.if(itemWitness.calculateRoot(Field(0)).equals(this.root), UInt32.from(1), UInt32.from(0)));
+    this.root = itemWitness.calculateRoot(item.hash());
+    this.total = this.total.add(item.price.mul(item.quantity));
+  }
+}
 
 const keyMap = {
   id: Field(0),
@@ -29,6 +59,7 @@ export class Invoice extends Struct({
   amount: UInt32,
   settled: Bool,
   metadataHash: Field,
+  itemsRoot: Field,
   dueDate: UInt32
 }) {
   hash(): Field {
@@ -53,6 +84,7 @@ export class Invoice extends Struct({
       metadataHash: this.metadataHash,
       dueDate: this.dueDate,
       settled: Bool(true),
+      itemsRoot: this.itemsRoot
     });
   }
 }

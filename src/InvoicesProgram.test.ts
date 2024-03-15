@@ -1,5 +1,5 @@
 import { Field, MerkleTree, UInt32, PrivateKey, Bool, verify, Signature } from 'o1js';
-import { Invoice, InvoicesWitness } from './InvoicesModels.js';
+import { CartItem, Invoice, InvoiceCart, InvoiceCartWiteness, InvoicesWitness } from './InvoicesModels.js';
 
 import InvoicesProgram, { InvoicesState } from './InvoicesProgram.js';
 
@@ -20,6 +20,32 @@ describe('InvoicesProgram', () => {
     const tree = new MerkleTree(32);
     const sender = PrivateKey.random();
     const receiver = PrivateKey.random();
+    const cartTree = new MerkleTree(8);
+
+    const items = new InvoiceCart({
+      items: UInt32.from(0),
+      total: UInt32.from(0),
+      root: cartTree.getRoot()
+    });
+
+    const firstItem = new CartItem({
+      id: Field(1),
+      quantity: UInt32.from(1),
+      price: UInt32.from(1)
+    });
+    const secondItem = new CartItem({
+      id: Field(2),
+      quantity: UInt32.from(2),
+      price: UInt32.from(2)
+    });
+
+    const firstItemWitness = new InvoiceCartWiteness(cartTree.getWitness(0n));
+
+    items.addItem(firstItem, firstItemWitness);
+    cartTree.setLeaf(0n, firstItem.hash())
+
+    items.addItem(secondItem, new InvoiceCartWiteness(cartTree.getWitness(1n)));
+    cartTree.setLeaf(1n, secondItem.hash())
 
     const invc = new Invoice({
       id: Field(1),
@@ -28,7 +54,8 @@ describe('InvoicesProgram', () => {
       to: receiver.toPublicKey(),
       amount: UInt32.from(1),
       settled: Bool(false),
-      metadataHash: Field(0)
+      metadataHash: Field(0),
+      itemsRoot: items.root
     });
 
     const createSign = Signature.create(userPrivateKey, invc.hash().toFields());

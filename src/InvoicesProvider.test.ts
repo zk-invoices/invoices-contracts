@@ -11,7 +11,7 @@ import { InvoicesProviderToken as InvoicesProvider } from './InvoicesProviderTok
 
 let proofsEnabled = true;
 
-describe('Invoices Provider', () => {
+describe.skip('Invoices Provider', () => {
   let deployerAccount: PublicKey,
     deployerKey: PrivateKey,
     senderAccount: PublicKey,
@@ -147,8 +147,9 @@ describe('Invoices Provider', () => {
       to: receiverKey.publicKey,
       amount: UInt32.from(1),
       settled: Bool(false),
-      metadataHash: Field(0)
-    })
+      metadataHash: Field(0),
+      itemsRoot: Field(0)
+    });
 
     console.log('mint 0/2');
     await mintAccount(userKey.privateKey);

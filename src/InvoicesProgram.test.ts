@@ -63,7 +63,7 @@ describe('InvoicesProgram', () => {
     const createSign = Signature.create(userPrivateKey, invc.hash().toFields());
     console.time('create');
     const proof1 = await InvoicesProgram.createInvoice(
-      proof.publicOutput,
+      proof.publicInput,
       proof,
       invc,
       new InvoicesWitness(tree.getWitness(0n)),

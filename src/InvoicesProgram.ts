@@ -69,10 +69,14 @@ class InvoicesProgramInput extends Struct({
   operator: PublicKey
 }) { }
 
+class InvoicesProgramOutput extends Struct({
+  state: InvoicesState
+}) { }
+
 const InvoicesProgram = ZkProgram({
   name: 'invoices-program',
   publicInput: InvoicesProgramInput,
-  publicOutput: InvoicesProgramInput,
+  publicOutput: InvoicesProgramOutput,
 
   methods: {
     init: {
@@ -84,7 +88,9 @@ const InvoicesProgram = ZkProgram({
           .verify(pubInput.operator, Field(0).toFields())
           .assertTrue('Invalid signature provided');
 
-        return { state: InvoicesState.init(tree.getRoot()), operator: pubInput.operator };
+        return {
+          state: InvoicesState.init(tree.getRoot())
+        };
       },
     },
 
@@ -92,25 +98,21 @@ const InvoicesProgram = ZkProgram({
       privateInputs: [SelfProof, Invoice, InvoicesWitness, Signature],
       method(
         pubInput: InvoicesProgramInput,
-        earlierProof: SelfProof<InvoicesProgramInput, InvoicesProgramInput>,
+        earlierProof: SelfProof<InvoicesProgramInput, InvoicesProgramOutput>,
         invoice: Invoice,
         witness: InvoicesWitness,
         sign: Signature
       ) {
-        pubInput.state.invoicesRoot.assertEquals(
-          earlierProof.publicOutput.state.invoicesRoot,
-          'Roots do not match'
-        );
+        earlierProof.verify();
 
         sign.verify(
           pubInput.operator,
           invoice.hash().toFields(),
         ).assertTrue('Invalid signature provided');
 
-
-        earlierProof.verify();
-
-        return { state: pubInput.state.create(invoice, witness), operator: pubInput.operator };
+        return {
+          state: earlierProof.publicOutput.state.create(invoice, witness)
+        };
       },
     },
   },

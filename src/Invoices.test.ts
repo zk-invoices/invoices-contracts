@@ -45,6 +45,8 @@ describe.skip('Invoices', () => {
     invoices = [new Invoice({
       id: Field(1),
       dueDate: UInt32.from(Date.now()),
+      createdAt: UInt32.from(Date.now()),
+      updatedAt: UInt32.from(Date.now()),
       seller: Local.testAccounts[1].publicKey,
       buyer:Local.testAccounts[1].publicKey,
       amount: UInt32.from(1),
@@ -154,6 +156,8 @@ describe.skip('Invoices', () => {
     const overLimitInvoice = new Invoice({
       id: Field(1),
       dueDate: UInt32.from(Date.now()),
+      createdAt: UInt32.from(Date.now()),
+      updatedAt: UInt32.from(Date.now()),
       seller: testAccounts[1].publicKey,
       buyer:testAccounts[1].publicKey,
       amount: UInt32.from(1000000),
@@ -180,6 +184,8 @@ describe.skip('Invoices', () => {
     const overLimitInvoice = new Invoice({
       id: Field(1),
       dueDate: UInt32.from(Date.now()),
+      createdAt: UInt32.from(Date.now()),
+      updatedAt: UInt32.from(Date.now()),
       seller: testAccounts[1].publicKey,
       buyer:testAccounts[1].publicKey,
       amount: UInt32.from(1000000),

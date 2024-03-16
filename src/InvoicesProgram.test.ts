@@ -50,6 +50,8 @@ describe('InvoicesProgram', () => {
     const invc = new Invoice({
       id: Field(1),
       dueDate: UInt32.from(Math.floor(Date.now() / 1000)),
+      createdAt: UInt32.from(Math.floor(Date.now() / 1000)),
+      updatedAt: UInt32.from(Math.floor(Date.now() / 1000)),
       buyer: sender.toPublicKey(),
       seller: receiver.toPublicKey(),
       amount: UInt32.from(1),

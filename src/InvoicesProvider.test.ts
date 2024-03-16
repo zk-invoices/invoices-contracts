@@ -143,6 +143,8 @@ describe.skip('Invoices Provider', () => {
     const invoice = new Invoice({
       id: Field(1),
       dueDate: UInt32.from(Date.now()),
+      createdAt: UInt32.from(Date.now()),
+      updatedAt: UInt32.from(Date.now()),
       seller: userKey.publicKey,
       buyer:receiverKey.publicKey,
       amount: UInt32.from(1),

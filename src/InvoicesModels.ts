@@ -49,7 +49,10 @@ const keyMap = {
   amount: Field(3),
   settled: Field(4),
   metadataHash: Field(5),
-  dueDate: Field(6)
+  dueDate: Field(6),
+  createdAt: Field(7),
+  updatedAt: Field(8),
+  itemsRoot: Field(11)
 };
 
 export class Invoice extends Struct({
@@ -60,7 +63,9 @@ export class Invoice extends Struct({
   settled: Bool,
   metadataHash: Field,
   itemsRoot: Field,
-  dueDate: UInt32
+  dueDate: UInt32,
+  createdAt: UInt32,
+  updatedAt: UInt32,
 }) {
   hash(): Field {
     const map = new MerkleMap();
@@ -69,8 +74,10 @@ export class Invoice extends Struct({
     map.set(keyMap.seller, Poseidon.hash(this.seller.toFields()))
     map.set(keyMap.buyer, Poseidon.hash(this.buyer.toFields()))
     map.set(keyMap.amount, Poseidon.hash(this.amount.toFields()))
-    map.set(keyMap.metadataHash, Poseidon.hash(this.metadataHash.toFields()))
+    map.set(keyMap.itemsRoot, Poseidon.hash([Field(0)].concat(this.itemsRoot)))
     map.set(keyMap.dueDate, Poseidon.hash(this.dueDate.toFields()));
+    map.set(keyMap.createdAt, Poseidon.hash(this.createdAt.toFields()));
+    map.set(keyMap.updatedAt, Poseidon.hash(this.updatedAt.toFields()));
 
     return map.getRoot();
   }
@@ -84,7 +91,9 @@ export class Invoice extends Struct({
       metadataHash: this.metadataHash,
       dueDate: this.dueDate,
       settled: Bool(true),
-      itemsRoot: this.itemsRoot
+      itemsRoot: this.itemsRoot,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt
     });
   }
 }

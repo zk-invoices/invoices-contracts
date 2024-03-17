@@ -1,11 +1,12 @@
 import { Field, MerkleTree, UInt32, PrivateKey, Bool, verify, Signature } from 'o1js';
 import { CartItem, Invoice, InvoiceCart, InvoiceCartWiteness, InvoicesWitness } from './InvoicesModels.js';
 
-import InvoicesProgram, { InvoicesState } from './InvoicesProgram.js';
+import InvoicesProgram, { InvoicesState, SignedActionTimestamp } from './InvoicesProgram.js';
 
 describe('InvoicesProgram', () => {
   it('test basic functions', async () => {
     const userPrivateKey = PrivateKey.random();
+    const timeAuthorityKey = PrivateKey.random();
     console.log('start');
 
     console.time('compile');
@@ -14,7 +15,11 @@ describe('InvoicesProgram', () => {
 
     console.time('init');
     const initSign = Signature.create(userPrivateKey, Field(0).toFields());
-    const proof = await InvoicesProgram.init({ state: InvoicesState.empty(), operator: userPrivateKey.toPublicKey() }, initSign);
+    const proof = await InvoicesProgram.init({
+      state: InvoicesState.empty(),
+      operator: userPrivateKey.toPublicKey(),
+      timeAuthority: timeAuthorityKey.toPublicKey()
+    }, initSign);
     console.timeEnd('init');
 
     const tree = new MerkleTree(32);
@@ -47,11 +52,12 @@ describe('InvoicesProgram', () => {
     items.addItem(secondItem, new InvoiceCartWiteness(cartTree.getWitness(1n)));
     cartTree.setLeaf(1n, secondItem.hash())
 
+    const currentTimestamp = UInt32.from(Math.floor(Date.now() / 1000));
     const invc = new Invoice({
       id: Field(1),
-      dueDate: UInt32.from(Math.floor(Date.now() / 1000)),
-      createdAt: UInt32.from(Math.floor(Date.now() / 1000)),
-      updatedAt: UInt32.from(Math.floor(Date.now() / 1000)),
+      dueDate: currentTimestamp.add(30*24*60*60),
+      createdAt: currentTimestamp,
+      updatedAt: currentTimestamp,
       buyer: sender.toPublicKey(),
       seller: receiver.toPublicKey(),
       amount: UInt32.from(1),
@@ -61,13 +67,15 @@ describe('InvoicesProgram', () => {
     });
 
     const createSign = Signature.create(userPrivateKey, invc.hash().toFields());
+    const actionTimestamp = SignedActionTimestamp.signedTimestamp(invc.hash(), currentTimestamp, timeAuthorityKey);
     console.time('create');
     const proof1 = await InvoicesProgram.createInvoice(
       proof.publicInput,
       proof,
       invc,
       new InvoicesWitness(tree.getWitness(0n)),
-      createSign
+      createSign,
+      actionTimestamp
     );
     console.timeEnd('create');
 

@@ -10,8 +10,26 @@
  * secure way to get benefits of ZK tech.
  */
 
-import { SelfProof, Field, ZkProgram, Struct, MerkleTree, PublicKey, Signature, Provable, UInt32 } from 'o1js';
+import { SelfProof, Field, ZkProgram, Struct, MerkleTree, PublicKey, Signature, UInt32, PrivateKey } from 'o1js';
 import { Invoice, InvoicesWitness } from './InvoicesModels.js';
+
+export class SignedActionTimestamp extends Struct({
+  actionHash: Field,
+  timestamp: UInt32,
+  signature: Signature
+}) {
+  static signedTimestamp(hash: Field, timestamp: UInt32, key: PrivateKey) {
+    return new SignedActionTimestamp({
+      actionHash: hash,
+      timestamp: timestamp, 
+      signature: Signature.create(key, [hash].concat(timestamp.toFields()))
+    });
+  }
+
+  verifyTimestamp(authority: PublicKey) {
+    return this.signature.verify(authority, [this.actionHash].concat(this.timestamp.toFields()));
+  }
+}
 
 export class InvoicesState extends Struct({
   invoicesRoot: Field,
@@ -66,7 +84,8 @@ export class InvoicesState extends Struct({
 
 class InvoicesProgramInput extends Struct({
   state: InvoicesState,
-  operator: PublicKey
+  operator: PublicKey,
+  timeAuthority: PublicKey
 }) { }
 
 class InvoicesProgramOutput extends Struct({
@@ -95,20 +114,27 @@ const InvoicesProgram = ZkProgram({
     },
 
     createInvoice: {
-      privateInputs: [SelfProof, Invoice, InvoicesWitness, Signature],
+      privateInputs: [SelfProof, Invoice, InvoicesWitness, Signature, SignedActionTimestamp],
       method(
         pubInput: InvoicesProgramInput,
         earlierProof: SelfProof<InvoicesProgramInput, InvoicesProgramOutput>,
         invoice: Invoice,
         witness: InvoicesWitness,
-        sign: Signature
+        sign: Signature,
+        actionTimestamp: SignedActionTimestamp
       ) {
         earlierProof.verify();
 
+        const invoiceHash = invoice.hash();
+
         sign.verify(
           pubInput.operator,
-          invoice.hash().toFields(),
+          invoiceHash.toFields(),
         ).assertTrue('Invalid signature provided');
+
+        actionTimestamp.verifyTimestamp(pubInput.timeAuthority).assertTrue('Invalid timestamp signature');
+        actionTimestamp.actionHash.equals(invoiceHash).assertTrue('Invalid invoice hash in timestamp');
+        actionTimestamp.timestamp.equals(invoice.createdAt).assertTrue('Invoice createdAt does not match timestamp');
 
         return {
           state: earlierProof.publicOutput.state.create(invoice, witness)

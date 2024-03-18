@@ -85,11 +85,15 @@ export class InvoicesState extends Struct({
 class InvoicesProgramInput extends Struct({
   state: InvoicesState,
   operator: PublicKey,
-  timeAuthority: PublicKey
+  timeAuthority: PublicKey,
+  creditAccount: PublicKey,
+  creditAuthority: PublicKey
 }) { }
 
 class InvoicesProgramOutput extends Struct({
-  state: InvoicesState
+  state: InvoicesState,
+  nonce: UInt32,
+  limit: UInt32
 }) { }
 
 const InvoicesProgram = ZkProgram({
@@ -108,9 +112,34 @@ const InvoicesProgram = ZkProgram({
           .assertTrue('Invalid signature provided');
 
         return {
-          state: InvoicesState.init(tree.getRoot())
+          state: InvoicesState.init(tree.getRoot()),
+          limit: UInt32.from(0),
+          nonce: UInt32.from(1)
         };
       },
+    },
+
+    setLimit: {
+      privateInputs: [SelfProof, UInt32, Signature],
+      method(
+        pubInput: InvoicesProgramInput,
+        earlierProof: SelfProof<InvoicesProgramInput, InvoicesProgramOutput>,
+        limit: UInt32,
+        sign: Signature
+      ) {
+        earlierProof.verify();
+        
+        sign.verify(
+          pubInput.creditAuthority,
+          earlierProof.publicOutput.nonce.toFields().concat(pubInput.creditAccount.toFields()).concat(limit.toFields())
+        )
+        
+        return {
+          state: earlierProof.publicOutput.state,
+          limit: limit,
+          nonce: UInt32.from(1)
+        };
+      }
     },
 
     createInvoice: {
@@ -136,8 +165,14 @@ const InvoicesProgram = ZkProgram({
         actionTimestamp.actionHash.equals(invoiceHash).assertTrue('Invalid invoice hash in timestamp');
         actionTimestamp.timestamp.equals(invoice.createdAt).assertTrue('Invoice createdAt does not match timestamp');
 
+        earlierProof.publicOutput.limit
+          .greaterThanOrEqual(earlierProof.publicOutput.state.usedLimit.add(invoice.amount))
+          .assertTrue('Limit not available');
+
         return {
-          state: earlierProof.publicOutput.state.create(invoice, witness)
+          state: earlierProof.publicOutput.state.create(invoice, witness),
+          limit: earlierProof.publicOutput.limit,
+          nonce: earlierProof.publicOutput.nonce.add(1)
         };
       },
     },

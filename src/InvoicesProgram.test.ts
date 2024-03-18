@@ -18,7 +18,9 @@ describe('InvoicesProgram', () => {
     const proof = await InvoicesProgram.init({
       state: InvoicesState.empty(),
       operator: userPrivateKey.toPublicKey(),
-      timeAuthority: timeAuthorityKey.toPublicKey()
+      timeAuthority: timeAuthorityKey.toPublicKey(),
+      creditAccount: userPrivateKey.toPublicKey(),
+      creditAuthority: timeAuthorityKey.toPublicKey()
     }, initSign);
     console.timeEnd('init');
 
@@ -68,10 +70,21 @@ describe('InvoicesProgram', () => {
 
     const createSign = Signature.create(userPrivateKey, invc.hash().toFields());
     const actionTimestamp = SignedActionTimestamp.signedTimestamp(invc.hash(), currentTimestamp, timeAuthorityKey);
-    console.time('create');
-    const proof1 = await InvoicesProgram.createInvoice(
+
+    console.time('setLimit');
+    const limitAmount = UInt32.from(5000);
+    const proof1 = await InvoicesProgram.setLimit(
       proof.publicInput,
       proof,
+      limitAmount,
+      Signature.create(timeAuthorityKey, proof.publicOutput.nonce.toFields().concat(proof.publicInput.creditAccount.toFields()).concat(limitAmount.toFields()))
+    );
+    console.timeEnd('setLimit');
+
+    console.time('create');
+    const proof2 = await InvoicesProgram.createInvoice(
+      proof.publicInput,
+      proof1,
       invc,
       new InvoicesWitness(tree.getWitness(0n)),
       createSign,
@@ -80,7 +93,7 @@ describe('InvoicesProgram', () => {
     console.timeEnd('create');
 
     console.time('verify');
-    const success = await verify(proof1, vk.verificationKey);
+    const success = await verify(proof2, vk.verificationKey);
     console.timeEnd('verify');
 
     expect(success).toBe(true);

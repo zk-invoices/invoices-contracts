@@ -68,18 +68,34 @@ export class Invoice extends Struct({
   updatedAt: UInt32,
 }) {
   hash(): Field {
-    const map = new MerkleMap();
+    // const map = new MerkleMap();
 
-    map.set(keyMap.id, Poseidon.hash(this.id.toFields()))
-    map.set(keyMap.seller, Poseidon.hash(this.seller.toFields()))
-    map.set(keyMap.buyer, Poseidon.hash(this.buyer.toFields()))
-    map.set(keyMap.amount, Poseidon.hash(this.amount.toFields()))
-    map.set(keyMap.itemsRoot, Poseidon.hash([Field(0)].concat(this.itemsRoot)))
-    map.set(keyMap.dueDate, Poseidon.hash(this.dueDate.toFields()));
-    map.set(keyMap.createdAt, Poseidon.hash(this.createdAt.toFields()));
-    map.set(keyMap.updatedAt, Poseidon.hash(this.updatedAt.toFields()));
+    // map.set(keyMap.id, Poseidon.hash(this.id.toFields()))
+    // map.set(keyMap.seller, Poseidon.hash(this.seller.toFields()))
+    // map.set(keyMap.buyer, Poseidon.hash(this.buyer.toFields()))
+    // map.set(keyMap.amount, Poseidon.hash(this.amount.toFields()))
+    // map.set(keyMap.itemsRoot, Poseidon.hash([Field(0)].concat(this.itemsRoot)))
+    // map.set(keyMap.dueDate, Poseidon.hash(this.dueDate.toFields()));
+    // map.set(keyMap.createdAt, Poseidon.hash(this.createdAt.toFields()));
+    // map.set(keyMap.updatedAt, Poseidon.hash(this.updatedAt.toFields()));
 
-    return map.getRoot();
+    // return map.getRoot();
+    return Poseidon.hash(Invoice.toFields(this));
+  }
+
+  access(timestamp: UInt32) {
+    return new Invoice({
+      id: this.id,
+      seller: this.seller,
+      buyer: this.buyer,
+      amount: this.amount,
+      metadataHash: this.metadataHash,
+      dueDate: this.dueDate,
+      settled: this.settled,
+      itemsRoot: this.itemsRoot,
+      createdAt: this.createdAt,
+      updatedAt: timestamp
+    });
   }
 
   claim() {

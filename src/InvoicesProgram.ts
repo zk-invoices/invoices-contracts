@@ -65,12 +65,12 @@ export class InvoicesState extends Struct({
     });
   }
 
-  claim(invoice: Invoice, witness: InvoicesWitness) {
-    const newRoot = witness.calculateRoot(invoice.claim().hash());
-    const alreadyClaimed = newRoot.equals(this.invoicesRoot);
+  claim(invoice: Invoice, timestamp: UInt32, witness: InvoicesWitness) {
     const invoiceExists = witness
       .calculateRoot(invoice.hash())
       .equals(this.invoicesRoot);
+    const newRoot = witness.calculateRoot(invoice.access(timestamp).claim().hash());
+    const alreadyClaimed = newRoot.equals(this.invoicesRoot);
 
     alreadyClaimed.assertFalse('Invoice already claimed');
     invoiceExists.assertTrue('Invoice does not exist');
@@ -93,7 +93,8 @@ class InvoicesProgramInput extends Struct({
 class InvoicesProgramOutput extends Struct({
   state: InvoicesState,
   nonce: UInt32,
-  limit: UInt32
+  limit: UInt32,
+  claimAmount: UInt32
 }) { }
 
 const InvoicesProgram = ZkProgram({
@@ -114,7 +115,8 @@ const InvoicesProgram = ZkProgram({
         return {
           state: InvoicesState.init(tree.getRoot()),
           limit: UInt32.from(0),
-          nonce: UInt32.from(1)
+          nonce: UInt32.from(1),
+          claimAmount: UInt32.from(0)
         };
       },
     },
@@ -137,7 +139,8 @@ const InvoicesProgram = ZkProgram({
         return {
           state: earlierProof.publicOutput.state,
           limit: limit,
-          nonce: UInt32.from(1)
+          nonce: UInt32.from(1),
+          claimAmount: UInt32.from(0)
         };
       }
     },
@@ -171,11 +174,43 @@ const InvoicesProgram = ZkProgram({
 
         return {
           state: earlierProof.publicOutput.state.create(invoice, witness),
-          limit: earlierProof.publicOutput.limit,
-          nonce: earlierProof.publicOutput.nonce.add(1)
+          limit: earlierProof.publicOutput.limit.sub(invoice.amount),
+          nonce: earlierProof.publicOutput.nonce.add(1),
+          claimAmount: UInt32.from(0)
         };
       },
     },
+
+    claimInvoice: {
+      privateInputs: [SelfProof, Invoice, InvoicesWitness, Signature, SignedActionTimestamp],
+      method(
+        pubInput: InvoicesProgramInput,
+        earlierProof: SelfProof<InvoicesProgramInput, InvoicesProgramOutput>,
+        invoice: Invoice,
+        witness: InvoicesWitness,
+        sign: Signature,
+        actionTimestamp: SignedActionTimestamp
+      ) {
+        earlierProof.verify();
+
+        const invoiceHash = invoice.hash();
+
+        sign.verify(
+          pubInput.operator,
+          invoiceHash.toFields(),
+        ).assertTrue('Invalid signature provided');
+
+        actionTimestamp.verifyTimestamp(pubInput.timeAuthority).assertTrue('Invalid timestamp signature');
+        actionTimestamp.actionHash.equals(invoice.access(actionTimestamp.timestamp).hash()).assertTrue('Invalid invoice hash in timestamp');
+
+        return {
+          state: earlierProof.publicOutput.state.claim(invoice, actionTimestamp.timestamp, witness),
+          limit: earlierProof.publicOutput.limit,
+          nonce: earlierProof.publicOutput.nonce.add(1),
+          claimAmount: UInt32.from(invoice.amount)
+        };
+      }
+    }
   },
 });
 

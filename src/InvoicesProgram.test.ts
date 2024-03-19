@@ -82,7 +82,7 @@ describe('InvoicesProgram', () => {
     console.timeEnd('setLimit');
 
     console.time('create');
-    const proof2 = await InvoicesProgram.createInvoice(
+    const createProof = await InvoicesProgram.createInvoice(
       proof.publicInput,
       proof1,
       invc,
@@ -90,10 +90,29 @@ describe('InvoicesProgram', () => {
       createSign,
       actionTimestamp
     );
+    tree.setLeaf(0n, invc.hash());
     console.timeEnd('create');
 
+    console.time('claim');
+    const claimTimestamp = UInt32.from(Math.floor(Date.now() / 1000));
+
+    const updatedInvc = invc.access(claimTimestamp);
+
+    const claimActionTimestamp = SignedActionTimestamp.signedTimestamp(updatedInvc.hash(), claimTimestamp, timeAuthorityKey);
+    const claimSign = Signature.create(userPrivateKey, invc.hash().toFields());
+
+    const claimProof = await InvoicesProgram.claimInvoice(
+      proof.publicInput,
+      proof1,
+      invc,
+      new InvoicesWitness(tree.getWitness(0n)),
+      claimSign,
+      claimActionTimestamp
+    );
+    console.time('claim');
+
     console.time('verify');
-    const success = await verify(proof2, vk.verificationKey);
+    const success = await verify(claimProof, vk.verificationKey);
     console.timeEnd('verify');
 
     expect(success).toBe(true);

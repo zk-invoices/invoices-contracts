@@ -1,7 +1,9 @@
 # NodeJS
 node_modules
-build
 coverage
+
+build/src/actions
+build/src/experiments
 
 # Editor
 .vscode

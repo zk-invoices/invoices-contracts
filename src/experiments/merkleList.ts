@@ -21,8 +21,8 @@ export class Invoice extends Struct({
 
   settle() {
     return new Invoice({
-      seller: this.from,
-      buyer:this.to,
+      seller: this.seller,
+      buyer: this.buyer,
       amount: this.amount,
       metadataHash: this.metadataHash,
       settled: Bool(true),

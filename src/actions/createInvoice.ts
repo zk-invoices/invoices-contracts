@@ -83,7 +83,10 @@ try {
     buyer:userAddress,
     amount: UInt32.from(1),
     settled: Bool(false),
-    metadataHash: Field(0)
+    metadataHash: Field(0),
+    createdAt: UInt32.from(Math.floor(Date.now()/1000)),
+    updatedAt: UInt32.from(Math.floor(Date.now()/1000)),
+    itemsRoot: Field(0)
   })
 
   const witness = new InvoicesWitness(Tree.getWitness(0n))

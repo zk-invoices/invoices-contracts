@@ -82,7 +82,7 @@ console.log('deploy tokenZkApp');
 tx = await Mina.transaction(sender, () => {
   tokenZkApp.deploy();
   AccountUpdate.fundNewAccount(sender).send({
-    buyer:tokenZkApp.self,
+    to: tokenZkApp.self,
     amount: initialBalance,
   });
 });

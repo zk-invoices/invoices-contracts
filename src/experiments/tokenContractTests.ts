@@ -39,8 +39,8 @@ export class Invoice extends Struct({
 
   settle() {
     return new Invoice({
-      seller: this.from,
-      buyer:this.to,
+      seller: this.seller,
+      buyer: this.buyer,
       amount: this.amount,
       metadataHash: this.metadataHash,
       settled: Bool(true),
@@ -250,7 +250,7 @@ class InvoiceProvider extends TokenContract {
     const zkAppTokenAccount = new Invoices(address, this.token.id);
 
     this.token.mint({
-      address: to,
+      address: buyer,
       amount: 1
     });
 
@@ -310,7 +310,7 @@ async function run() {
   console.log('compiled');
   let tx = await Mina.transaction(feePayer, () => {
     AccountUpdate.fundNewAccount(feePayer).send({
-      buyer:zkappAddress,
+      to: zkappAddress,
       amount: initialBalance
     });
     tokensApp.deploy({});
@@ -338,7 +338,7 @@ async function run() {
     console.log(`minting for`, publicKey.toBase58());
     let tx = await Mina.transaction(feePayer, () => {
       AccountUpdate.fundNewAccount(feePayer).send({
-        buyer:publicKey,
+        to: publicKey,
         amount: initialBalance
       });
       AccountUpdate.fundNewAccount(feePayer);
@@ -354,7 +354,7 @@ async function run() {
     let witness = new InvoicesWitness(w);
 
     let tx = await Mina.transaction(userPublicKey, () => {
-      tokensApp.createInvoice(userPublicKey, invoice, witness, invoice.to);
+      tokensApp.createInvoice(userPublicKey, invoice, witness, invoice.seller);
     });
 
     console.log(tx.toPretty());

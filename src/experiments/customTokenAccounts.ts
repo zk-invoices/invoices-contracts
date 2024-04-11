@@ -40,8 +40,8 @@ export class Invoice extends Struct({
 
   settle() {
     return new Invoice({
-      seller: this.from,
-      buyer:this.to,
+      seller: this.seller,
+      buyer: this.buyer,
       amount: this.amount,
       metadataHash: this.metadataHash,
       settled: Bool(true),
@@ -298,7 +298,7 @@ async function run() {
   console.log('compiled');
   let tx = await Mina.transaction(feePayer, () => {
     AccountUpdate.fundNewAccount(feePayer).send({
-      buyer:zkappAddress,
+      to: zkappAddress,
       amount: initialBalance
     });
     tokensApp.deploy({});
@@ -326,7 +326,7 @@ async function run() {
     console.log(`minting for`, publicKey.toBase58());
     let tx = await Mina.transaction(feePayer, () => {
       AccountUpdate.fundNewAccount(feePayer).send({
-        buyer:publicKey,
+        to: publicKey,
         amount: initialBalance
       });
       AccountUpdate.fundNewAccount(feePayer);
